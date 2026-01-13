@@ -77,7 +77,7 @@ const AddRecipeForm = () => {
       setIsSearching(true);
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/ingredients?query=${encodeURIComponent(searchIngredient)}&lang=es&limit=10`
+          `${import.meta.env.VITE_API_URL}/api/ingredients?query=${encodeURIComponent(searchIngredient)}&lang=es&limit=10`
         );
         
         if (response.data.success && response.data.ingredients) {
@@ -408,7 +408,7 @@ const AddRecipeForm = () => {
         })
       };
 
-      const response = await axios.post('http://localhost:5000/api/recipes', recipeToSend, config);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/recipes`, recipeToSend, config);
       
       toast.success('¡Receta creada exitosamente!');
       

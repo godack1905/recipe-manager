@@ -1,6 +1,6 @@
 import React from 'react';
 
-const MealPlans = () => {
+const CalendarPage = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Planificación de Comidas</h1>
@@ -13,4 +13,4 @@ const MealPlans = () => {
   );
 };
 
-export default MealPlans;
+export default CalendarPage;

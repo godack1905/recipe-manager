@@ -22,15 +22,20 @@ export const useIngredientSearch = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/ingredients?query=${encodeURIComponent(query)}&lang=es&limit=5`
+        `${import.meta.env.VITE_API_URL}/api/ingredients?query=${encodeURIComponent(query)}&lang=es&limit=5`
       );
-      
+
       if (response.data.success && response.data.ingredients) {
-        const mappedSuggestions = response.data.ingredients.map((ing: any) => ({
-          id: ing.id,
-          name: ing.names?.es || ing.names?.en || ing.id,
-          allowedMeasures: ing.allowedMeasures || [{ name: 'g' }]
-        }));
+        const mappedSuggestions = response.data.ingredients.map((ing: any) => {
+          // Siempre usar el ID como valor principal para enviar al backend
+          const id = ing.id;
+          // Mostrar nombre en la UI
+          const name = ing.names?.es || ing.names?.en || id;
+          const allowedMeasures = ing.allowedMeasures || [{ name: 'g' }];
+
+          return { id, name, allowedMeasures };
+        });
+
         setSuggestions(mappedSuggestions);
       }
     } catch (error) {
@@ -41,11 +46,10 @@ export const useIngredientSearch = () => {
     }
   }, []);
 
+  // Actualizamos search cada vez que el usuario escribe
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchTerm) {
-        searchIngredients(searchTerm);
-      }
+      if (searchTerm) searchIngredients(searchTerm);
     }, 300);
 
     return () => clearTimeout(timer);

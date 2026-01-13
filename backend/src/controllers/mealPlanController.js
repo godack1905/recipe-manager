@@ -151,7 +151,7 @@ export const upsertMealPlan = async (req, res) => {
       }
     )
     .populate({
-      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe',
+      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe meals.afternoonSnack.recipe',
       select: 'title imageUrl servings prepTime difficulty'
     });
 
@@ -250,7 +250,7 @@ export const updateMeal = async (req, res) => {
     }
 
     // Tipos de comida válidos
-    const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+    const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snack', 'afternoonSnack'];
     if (!validMealTypes.includes(mealType)) {
       return res.status(400).json({ 
         success: false,
@@ -326,7 +326,7 @@ export const updateMeal = async (req, res) => {
     
     // Populate para devolver información completa
     await plan.populate({
-      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe',
+      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe meals.afternoonSnack.recipe',
       select: 'title imageUrl servings prepTime difficulty'
     });
 

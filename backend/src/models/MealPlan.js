@@ -45,9 +45,10 @@ const MealPlanSchema = new mongoose.Schema(
     },
     meals: {
       breakfast: MealSchema,
+      snack: MealSchema,
       lunch: MealSchema,
-      dinner: MealSchema,
-      snack: MealSchema
+      afternoonSnack: MealSchema,
+      dinner: MealSchema
     }
   },
   { 

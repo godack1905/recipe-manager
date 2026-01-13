@@ -11,8 +11,7 @@ import Recipes from './pages/Recipes';
 import RecipeDetail from './pages/RecipeDetail';
 import RecipeCreate from './pages/RecipeCreate';
 import RecipeEdit from './pages/RecipeEdit';
-import Calendar from './pages/Calendar';
-import MealPlans from './pages/MealPlans';
+import Calendar from './pages/CalendarPage.jsx';
 
 // Layout
 import Layout from './components/ui/Layout';
@@ -95,12 +94,6 @@ function App() {
           <Route path="/calendar" element={
             <ProtectedRoute>
               <Calendar />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/meal-plans" element={
-            <ProtectedRoute>
-              <MealPlans />
             </ProtectedRoute>
           } />
           

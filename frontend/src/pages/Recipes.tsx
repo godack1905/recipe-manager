@@ -99,13 +99,6 @@ const Recipes = () => {
                 0 recetas en total
               </p>
             </div>
-            <Link
-              to="/recipes/new"
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Receta
-            </Link>
           </div>
         </div>
 
@@ -134,15 +127,6 @@ const Recipes = () => {
           <p className="mt-2 text-gray-600">
             Crea tu primera receta para comenzar.
           </p>
-          <div className="mt-6">
-            <Link
-              to="/recipes/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Crear primera receta
-            </Link>
-          </div>
         </div>
       </div>
     );
@@ -160,13 +144,6 @@ const Recipes = () => {
               {recipes.length} {recipes.length === 1 ? 'receta' : 'recetas'} en total
             </p>
           </div>
-          <Link
-            to="/recipes/new"
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Receta
-          </Link>
         </div>
       </div>
 

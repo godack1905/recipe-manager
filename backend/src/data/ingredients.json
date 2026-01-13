@@ -255,13 +255,13 @@
     "id": "010022",
     "categoria": "Vegetables",
     "names": { "es": "Patata", "en": "Potato" },
-    "standardUnit": "unit",
+    "standardUnit": "kg",
     "allowedMeasures": [
-      { "name": "Unidad", "baseValue": 1, "baseUnit": "unit" },
-      { "name": "Rodaja", "baseValue": 0.125, "baseUnit": "unit" },
-      { "name": "Pequeña", "baseValue": 0.7, "baseUnit": "unit" },
-      { "name": "Mediana", "baseValue": 1, "baseUnit": "unit" },
-      { "name": "Grande", "baseValue": 1.7, "baseUnit": "unit" }
+      { "name": "Kilogramos", "baseValue": 1, "baseUnit": "kg" },
+      { "name": "Gramos", "baseValue": 0.001, "baseUnit": "kg" },
+      { "name": "Pequeña", "baseValue": 0.100, "baseUnit": "kg" },
+      { "name": "Mediana", "baseValue": 0.200, "baseUnit": "kg" },
+      { "name": "Grande", "baseValue": 0.300, "baseUnit": "kg" }
     ]
   },
   {
@@ -350,6 +350,19 @@
       { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
       { "name": "Cucharada", "baseValue": 20, "baseUnit": "g" },
       { "name": "Taza", "baseValue": 200, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "020008",
+    "categoria": "Legumes",
+    "names": { "es": "Judías Verdes", "en": "Green beans" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
+      { "name": "Cucharada", "baseValue": 20, "baseUnit": "g" },
+      { "name": "Taza", "baseValue": 200, "baseUnit": "g" },
+      { "name": "Puñado", "baseValue": 60, "baseUnit": "g" }
     ]
   },
   {
@@ -577,47 +590,102 @@
     ]
   },
   {
-    "id": "050001",
-    "categoria": "Meat",
-    "names": { "es": "Pollo", "en": "Chicken" },
+    "id": "040007",
+    "categoria": "Dairy and Eggs",
+    "names": { "es": "Crema de leche", "en": "Cream" },
+    "standardUnit": "ml",
+    "allowedMeasures": [
+      { "name": "Mililitros", "baseValue": 1, "baseUnit": "ml" },
+      { "name": "Litros", "baseValue": 1000, "baseUnit": "ml" }
+    ]
+  },
+  {
+    "id": "040008",
+    "categoria": "Dairy and Eggs",
+    "names": { "es": "Mozarella rayada", "en": "Shredded mozzarella" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "040008",
+    "categoria": "Dairy and Eggs",
+    "names": { "es": "Parmesano", "en": "Parmesan" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "040004",
+    "categoria": "Dairy and Eggs",
+    "names": { "es": "Yogur desnatado", "en": "Low-fat yogurt" },
     "standardUnit": "g",
     "allowedMeasures": [
       { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
       { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
-      { "name": "Pecho", "baseValue": 200, "baseUnit": "g" },
-      { "name": "Muslo", "baseValue": 150, "baseUnit": "g" },
-      { "name": "Ala", "baseValue": 50, "baseUnit": "g" },
-      { "name": "Filete", "baseValue": 150, "baseUnit": "g" }
+      { "name": "Mililitros", "baseValue": 1, "baseUnit": "ml" },
+      { "name": "Litros", "baseValue": 1000, "baseUnit": "ml" },
+      { "name": "Cucharada", "baseValue": 15, "baseUnit": "g" },
+      { "name": "Taza", "baseValue": 250, "baseUnit": "g" },
+      { "name": "Envase", "baseValue": 125, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050001",
+    "categoria": "Meat",
+    "names": { "es": "Pechuga de Pollo", "en": "Chicken breast" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
     ]
   },
   {
     "id": "050002",
     "categoria": "Meat",
-    "names": { "es": "Pavo", "en": "Turkey" },
+    "names": { "es": "Muslitos de Pollo", "en": "Chicken drumsticks" },
     "standardUnit": "g",
     "allowedMeasures": [
       { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
-      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
-      { "name": "Pecho", "baseValue": 150, "baseUnit": "g" },
-      { "name": "Filete", "baseValue": 120, "baseUnit": "g" },
-      { "name": "Loncha", "baseValue": 30, "baseUnit": "g" }
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
     ]
   },
   {
     "id": "050003",
     "categoria": "Meat",
-    "names": { "es": "Cerdo", "en": "Pork" },
+    "names": { "es": "Alitas de Pollo", "en": "Chicken wings" },
     "standardUnit": "g",
     "allowedMeasures": [
       { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
-      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
-      { "name": "Chuleta", "baseValue": 200, "baseUnit": "g" },
-      { "name": "Filete", "baseValue": 150, "baseUnit": "g" },
-      { "name": "Taco", "baseValue": 100, "baseUnit": "g" }
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
     ]
   },
   {
     "id": "050004",
+    "categoria": "Meat",
+    "names": { "es": "Pechuga de Pavo", "en": "Turkey breast" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050005",
+    "categoria": "Meat",
+    "names": { "es": "Lomo de cerdo", "en": "Pork" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050006",
     "categoria": "Meat",
     "names": { "es": "Ternera", "en": "Veal" },
     "standardUnit": "g",
@@ -630,7 +698,7 @@
     ]
   },
   {
-    "id": "050005",
+    "id": "050007",
     "categoria": "Meat",
     "names": { "es": "Cordero", "en": "Lamb" },
     "standardUnit": "g",
@@ -642,7 +710,7 @@
     ]
   },
   {
-    "id": "050006",
+    "id": "050008",
     "categoria": "Meat",
     "names": { "es": "Conejo", "en": "Rabbit" },
     "standardUnit": "g",
@@ -654,7 +722,7 @@
     ]
   },
   {
-    "id": "050007",
+    "id": "050009",
     "categoria": "Meat",
     "names": { "es": "Carne picada mixta", "en": "Mixed minced meat" },
     "standardUnit": "g",
@@ -667,7 +735,7 @@
     ]
   },
   {
-    "id": "050008",
+    "id": "050010",
     "categoria": "Meat",
     "names": { "es": "Carne picada vacuno", "en": "Beef minced meat" },
     "standardUnit": "g",
@@ -679,7 +747,7 @@
     ]
   },
   {
-    "id": "050009",
+    "id": "050011",
     "categoria": "Meat",
     "names": { "es": "Carne picada cerdo", "en": "Pork minced meat" },
     "standardUnit": "g",
@@ -688,6 +756,26 @@
       { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
       { "name": "Bolita", "baseValue": 30, "baseUnit": "g" },
       { "name": "Hamburguesa", "baseValue": 100, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050012",
+    "categoria": "Meat",
+    "names": { "es": "Bacon", "en": "Bacon" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050012",
+    "categoria": "Meat",
+    "names": { "es": "Jamon york", "en": "York Ham" },
+    "standardUnit": "packet",
+    "allowedMeasures": [
+      { "name": "Paquete", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Loncha", "baseValue": 0.05, "baseUnit": "g" }
     ]
   },
   {
@@ -1487,6 +1575,18 @@
     ]
   },
   {
+    "id": "110011",
+    "categoria": "Liquids and Beverages",
+    "names": { "es": "Zumo de naranja", "en": "Orange juice" },
+    "standardUnit": "ml",
+    "allowedMeasures": [
+      { "name": "Mililitros", "baseValue": 1, "baseUnit": "ml" },
+      { "name": "Litros", "baseValue": 1000, "baseUnit": "ml" },
+      { "name": "Vaso", "baseValue": 200, "baseUnit": "ml" },
+      { "name": "Taza", "baseValue": 250, "baseUnit": "ml" }
+    ]
+  },
+  {
     "id": "120001",
     "categoria": "Other",
     "names": { "es": "Azúcar", "en": "Sugar" },
@@ -1629,6 +1729,47 @@
     "allowedMeasures": [
       { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
       { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "120013",
+    "categoria": "Other",
+    "names": { "es": "Tomate triturado", "en": "Chopped tomato" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "120013",
+    "categoria": "Mushrooms",
+    "names": { "es": "Champiñones", "en": "Mushrooms" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
+      { "name": "Bandeja", "baseValue": 200, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "120013",
+    "categoria": "Other",
+    "names": { "es": "Pan", "en": "Bread" },
+    "standardUnit": "unit",
+    "allowedMeasures": [
+      { "name": "Baguette", "baseValue": 1, "baseUnit": "unit" },
+      { "name": "Tostada Dieta (50g)", "baseValue": 0.2, "baseUnit": "unit"}
+    ]
+  },
+  {
+    "id": "120014",
+    "categoria": "Other",
+    "names": { "es": "Tostadas", "en": "Toast" },
+    "standardUnit": "packet",
+    "allowedMeasures": [
+      { "name": "Unidad", "baseValue": 0.125, "baseUnit": "unit" },
+      { "name": "Paquete", "baseValue": 1, "baseUnit": "unit" }
     ]
   }
 ]

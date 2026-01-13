@@ -7,8 +7,7 @@ const Sidebar: React.FC = () => {
     { to: '/', icon: Home, label: 'Inicio', end: true},
     { to: '/recipes', icon: BookOpen, label: 'Recetas', end: true},
     { to: '/new-recipe', icon: PlusCircle, label: 'Nueva Receta' },
-    { to: '/calendar', icon: Calendar, label: 'Calendario' },
-    { to: '/meal-plans', icon: Calendar, label: 'Planificación' },
+    { to: '/calendar', icon: Calendar, label: 'Planificación' }
   ];
 
   return (

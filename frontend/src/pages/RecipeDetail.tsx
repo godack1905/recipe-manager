@@ -153,14 +153,7 @@ const RecipeDetail = () => {
 
         {/* Stats */}
         <div className="p-6 border-b">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="flex items-center justify-center text-gray-500 mb-1">
-                <Clock className="h-5 w-5 mr-2" />
-                <span className="font-medium">Tiempo total</span>
-              </div>
-            </div>
-            
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
             <div className="text-center">
               <div className="flex items-center justify-center text-gray-500 mb-1">
                 <Users className="h-5 w-5 mr-2" />

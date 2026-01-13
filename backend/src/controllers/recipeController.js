@@ -26,22 +26,32 @@ const abstractMeasureEquivalents = {
   'taza': { baseUnit: 'ml', value: 250 }
 };
 
-const getIngredientId = (name, unit) => {
-  const ingredient = ingredientsData.find(
-    i =>
-      i.names.es.toLowerCase() === name.toLowerCase() ||
-      i.names.en.toLowerCase() === name.toLowerCase()
-  );
-  
+const getIngredientId = (identifier, unit) => {
+  // Primero por ID
+  let ingredient = ingredientsData.find(i => i.id === identifier);
+
   if (!ingredient) {
-    throw new Error(`Ingrediente no encontrado: ${name}`);
+    // Si no es un ID, buscar por nombre
+    ingredient = ingredientsData.find(
+      i =>
+        i.names.es.toLowerCase() === identifier.toLowerCase() ||
+        i.names.en.toLowerCase() === identifier.toLowerCase()
+    );
   }
-  
+
+  if (!ingredient) {
+    throw new Error(`Ingrediente no encontrado: ${identifier}`);
+  }
+
   // Validar unidad permitida si se proporciona y no es medida abstracta
   if (unit && !ingredient.allowedUnits.includes(unit)) {
-    throw new Error(`Unidad '${unit}' no permitida para ${name}. Unidades permitidas: ${ingredient.allowedUnits.join(", ")}`);
+    throw new Error(
+      `Unidad '${unit}' no permitida para ${ingredient.names.es}. Unidades permitidas: ${ingredient.allowedUnits.join(
+        ", "
+      )}`
+    );
   }
-  
+
   return ingredient.id;
 };
 

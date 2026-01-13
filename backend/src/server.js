@@ -38,7 +38,7 @@ const startServer = async () => {
   const server = app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`📁 Entorno: ${process.env.NODE_ENV || "development"}`);
-    console.log(`🔗 URL: http://localhost:${PORT}`);
+    console.log(`🔗 URL: http://192.168.1.52:${PORT}`);
   });
 
   // Manejar errores del servidor
