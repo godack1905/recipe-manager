@@ -121,8 +121,7 @@ export const createRecipe = async (req, res) => {
 
 export const getRecipes = async (req, res) => {
   try {
-    const { search, limit = 20, page = 1 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { search } = req.query; // Quitamos limit y page
     
     let query = {
       $or: [
@@ -135,21 +134,20 @@ export const getRecipes = async (req, res) => {
       query.title = { $regex: search, $options: "i" };
     }
 
+    // Sin limit ni skip - traemos TODAS las recetas
     const recipes = await Recipe.find(query)
       .populate("createdBy", "username")
-      .skip(skip)
-      .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
-    const total = await Recipe.countDocuments(query);
+    const total = recipes.length;
 
     res.json({
       recipes,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / parseInt(limit))
+        page: 1,
+        limit: total,
+        pages: 1
       }
     });
   } catch (err) {

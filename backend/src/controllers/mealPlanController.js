@@ -12,8 +12,24 @@ export const getMealPlans = async (req, res) => {
 
     const plans = await MealPlan.find(query)
       .populate({
-        path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe',
-        select: 'title imageUrl servings prepTime difficulty ingredients'
+        path: 'meals.breakfast.recipe',
+        select: 'title imageUrl servings prepTime difficulty'
+      })
+      .populate({
+        path: 'meals.snack.recipe',
+        select: 'title imageUrl servings prepTime difficulty'
+      })
+      .populate({
+        path: 'meals.lunch.recipe',
+        select: 'title imageUrl servings prepTime difficulty'
+      })
+      .populate({
+        path: 'meals.afternoonSnack.recipe',
+        select: 'title imageUrl servings prepTime difficulty'
+      })
+      .populate({
+        path: 'meals.dinner.recipe',
+        select: 'title imageUrl servings prepTime difficulty'
       })
       .sort({ date: 1 });
 
@@ -68,71 +84,76 @@ export const upsertMealPlan = async (req, res) => {
       const mealTypes = Object.keys(meals);
       
       for (const mealType of mealTypes) {
-        const meal = meals[mealType];
+        const mealArray = meals[mealType];
         
-        // Si se envía null, eliminar esa comida del plan
-        if (meal === null || meal === undefined) {
-          validatedMeals[mealType] = undefined;
+        // Si se envía null o undefined, eliminar esa comida del plan
+        if (mealArray === null || mealArray === undefined) {
+          validatedMeals[mealType] = [];
           continue;
         }
         
-        // Si se envía un objeto vacío o sin receta, mantener el valor existente
-        if (!meal.recipe) {
-          if (existingPlan && existingPlan.meals[mealType]) {
-            // Mantener la receta existente
-            continue;
-          } else {
-            // Si no hay receta existente, eliminar la comida
-            validatedMeals[mealType] = undefined;
+        // Asegurarse de que sea un array
+        if (!Array.isArray(mealArray)) {
+          return res.status(400).json({ 
+            success: false,
+            error: `${mealType} debe ser un array de comidas` 
+          });
+        }
+        
+        validatedMeals[mealType] = [];
+        
+        for (const meal of mealArray) {
+          // Si el meal es null o vacío, saltar
+          if (!meal || !meal.recipe) {
             continue;
           }
-        }
+          
+          let recipe;
+          
+          // Buscar por ID (si es un ObjectId válido)
+          if (meal.recipe.match(/^[0-9a-fA-F]{24}$/)) {
+            recipe = await Recipe.findById(meal.recipe);
+          } 
+          // Si no es un ObjectId, buscar por título
+          else {
+            // Buscar receta por título (entre las públicas o del usuario)
+            recipe = await Recipe.findOne({
+              title: { $regex: new RegExp(meal.recipe, 'i') },
+              $or: [
+                { isPublic: true },
+                { createdBy: req.user.id }
+              ]
+            });
+          }
 
-        let recipe;
-        
-        // Buscar por ID (si es un ObjectId válido)
-        if (meal.recipe.match(/^[0-9a-fA-F]{24}$/)) {
-          recipe = await Recipe.findById(meal.recipe);
-        } 
-        // Si no es un ObjectId, buscar por título
-        else {
-          // Buscar receta por título (entre las públicas o del usuario)
-          recipe = await Recipe.findOne({
-            title: { $regex: new RegExp(meal.recipe, 'i') },
-            $or: [
-              { isPublic: true },
-              { createdBy: req.user.id }
-            ]
+          if (!recipe) {
+            return res.status(404).json({ 
+              success: false,
+              error: `Receta no encontrada para ${mealType}: "${meal.recipe}"` 
+            });
+          }
+
+          // Verificar permisos
+          if (!recipe.isPublic && recipe.createdBy.toString() !== req.user.id) {
+            return res.status(403).json({ 
+              success: false,
+              error: `No tienes permiso para usar la receta "${recipe.title}"` 
+            });
+          }
+
+          // Agregar la comida al array
+          validatedMeals[mealType].push({
+            recipe: recipe.id,
+            people: Math.min(Math.max(meal.people || 4, 1), 20),
+            notes: meal.notes?.trim() || ""
           });
         }
-
-        if (!recipe) {
-          return res.status(404).json({ 
-            success: false,
-            error: `Receta no encontrada para ${mealType}: "${meal.recipe}"` 
-          });
-        }
-
-        // Verificar permisos
-        if (!recipe.isPublic && recipe.createdBy.toString() !== req.user.id) {
-          return res.status(403).json({ 
-            success: false,
-            error: `No tienes permiso para usar la receta "${recipe.title}"` 
-          });
-        }
-
-        // Crear o actualizar la comida
-        validatedMeals[mealType] = {
-          recipe: recipe.id,
-          people: Math.min(Math.max(meal.people || 4, 1), 20),
-          notes: meal.notes?.trim() || ""
-        };
       }
     }
 
-    // Filtrar comidas undefined
+    // Filtrar comidas que sean arrays vacíos
     Object.keys(validatedMeals).forEach(key => {
-      if (validatedMeals[key] === undefined) {
+      if (!validatedMeals[key] || validatedMeals[key].length === 0) {
         delete validatedMeals[key];
       }
     });
@@ -151,7 +172,23 @@ export const upsertMealPlan = async (req, res) => {
       }
     )
     .populate({
-      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe meals.afternoonSnack.recipe',
+      path: 'meals.breakfast.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    })
+    .populate({
+      path: 'meals.snack.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    })
+    .populate({
+      path: 'meals.lunch.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    })
+    .populate({
+      path: 'meals.afternoonSnack.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    })
+    .populate({
+      path: 'meals.dinner.recipe',
       select: 'title imageUrl servings prepTime difficulty'
     });
 
@@ -326,7 +363,23 @@ export const updateMeal = async (req, res) => {
     
     // Populate para devolver información completa
     await plan.populate({
-      path: 'meals.breakfast.recipe meals.lunch.recipe meals.dinner.recipe meals.snack.recipe meals.afternoonSnack.recipe',
+      path: 'meals.breakfast.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    });
+    await plan.populate({
+      path: 'meals.snack.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    });
+    await plan.populate({
+      path: 'meals.lunch.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    });
+    await plan.populate({
+      path: 'meals.afternoonSnack.recipe',
+      select: 'title imageUrl servings prepTime difficulty'
+    });
+    await plan.populate({
+      path: 'meals.dinner.recipe',
       select: 'title imageUrl servings prepTime difficulty'
     });
 

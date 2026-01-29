@@ -500,6 +500,18 @@
     ]
   },
   {
+    "id": "030012",
+    "categoria": "Grains and Cereals",
+    "names": { "es": "Fideos chinos", "en": "Chinese noodles" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
+      { "name": "Puñado", "baseValue": 80, "baseUnit": "g" },
+      { "name": "Taza", "baseValue": 100, "baseUnit": "g" }
+    ]
+  },
+  {
     "id": "040001",
     "categoria": "Dairy and Eggs",
     "names": { "es": "Leche", "en": "Milk" },
@@ -774,8 +786,38 @@
     "names": { "es": "Jamon york", "en": "York Ham" },
     "standardUnit": "packet",
     "allowedMeasures": [
-      { "name": "Paquete", "baseValue": 1, "baseUnit": "g" },
-      { "name": "Loncha", "baseValue": 0.05, "baseUnit": "g" }
+      { "name": "Paquete", "baseValue": 1, "baseUnit": "packet" },
+      { "name": "Loncha", "baseValue": 0.05, "baseUnit": "packet" }
+    ]
+  },
+  {
+    "id": "050013",
+    "categoria": "Meat",
+    "names": { "es": "Carrilleras", "en": "" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050014",
+    "categoria": "Meat",
+    "names": { "es": "Butifarra", "en": "" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "050015",
+    "categoria": "Meat",
+    "names": { "es": "Salchichas", "en": "Frankfurts" },
+    "standardUnit": "unit",
+    "allowedMeasures": [
+      { "name": "Unidad", "baseValue": 1, "baseUnit": "unit" },
+      { "name": "Paquete", "baseValue": 10, "baseUnit": "unit" }
     ]
   },
   {
@@ -877,6 +919,18 @@
     ]
   },
   {
+    "id": "060009",
+    "categoria": "Fish and Seafood",
+    "names": { "es": "Panga", "en": "Panga" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
+      { "name": "Filete", "baseValue": 150, "baseUnit": "g" },
+      { "name": "Loncha", "baseValue": 100, "baseUnit": "g" }
+    ]
+  },
+  {
     "id": "070001",
     "categoria": "Spices and Seasonings",
     "names": { "es": "Sal", "en": "Salt" },
@@ -905,7 +959,7 @@
   {
     "id": "070003",
     "categoria": "Spices and Seasonings",
-    "names": { "es": "Pimentón", "en": "Paprika" },
+    "names": { "es": "Pimentón picante", "en": "Spicy paprika" },
     "standardUnit": "g",
     "allowedMeasures": [
       { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
@@ -1108,6 +1162,18 @@
       { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
       { "name": "Pizca", "baseValue": 1, "baseUnit": "g" },
       { "name": "Cucharadita", "baseValue": 5, "baseUnit": "g" }
+    ]
+  },
+  {
+    "id": "070020",
+    "categoria": "Spices and Seasonings",
+    "names": { "es": "Pimentón dulce", "en": "Sweet paprika" },
+    "standardUnit": "g",
+    "allowedMeasures": [
+      { "name": "Gramos", "baseValue": 1, "baseUnit": "g" },
+      { "name": "Kilogramos", "baseValue": 1000, "baseUnit": "g" },
+      { "name": "Cucharadita", "baseValue": 2, "baseUnit": "g" },
+      { "name": "Cucharada", "baseValue": 8, "baseUnit": "g" }
     ]
   },
   {

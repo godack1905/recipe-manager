@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mongo:
     image: mongo:7
@@ -18,8 +20,9 @@ services:
       NODE_ENV: production
       PORT: 5000
       MONGO_URI: mongodb://mongo:27017/recipe_app
-      JWT_SECRET: 28d1db929200661e603b713d9914c202
-      CORS_ORIGIN: http://localhost:5173,http://frontend:5173,http://192.168.1.52:5173,http://server:5173
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: http://localhost:80,http://frontend:80,http://192.168.1.52:80,http://server:80
+      GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       - mongo
     restart: unless-stopped
@@ -33,7 +36,7 @@ services:
       args:
         VITE_API_URL: http://backend:5000
     ports:
-      - "5173:80"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped

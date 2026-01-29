@@ -94,13 +94,22 @@ const RecipeSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     }
-  },
+  }, 
   { 
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
   }
 );
+
+// Virtual para id
+RecipeSchema.virtual("id").get(function() {
+  return this._id.toHexString();
+});
+
+// Asegurar que el virtual se incluya en JSON
+RecipeSchema.set('toJSON', { virtuals: true });
+RecipeSchema.set('toObject', { virtuals: true });
 
 RecipeSchema.index({ title: "text", description: "text", tags: "text" });
 RecipeSchema.index({ createdBy: 1, createdAt: -1 });

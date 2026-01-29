@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -5,37 +8,39 @@ import routes from './routes/index.js';
 
 const app = express();
 
-// Configurar CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
+const allowedHostnames = (process.env.CORS_HOSTNAMES || '')
   .split(',')
-  .map(origin => origin.trim());
+  .map(h => h.trim())
+  .filter(Boolean);
+
+console.log('CORS HOSTNAMES:', allowedHostnames);
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS bloqueado: ${origin}`));
+    try {
+      const { hostname } = new URL(origin);
+
+      if (allowedHostnames.includes(hostname)) {
+        return callback(null, true);
+      }
+    } catch (e) {
     }
+
+    callback(new Error(`CORS bloqueado: ${origin}`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.options('*', cors());
-
-
 app.use(express.json());
 app.use(morgan('dev'));
-
 app.use('/uploads', express.static('uploads'));
-
 app.use('/api', routes);
 
-app.get('/health', (req, res) => {
+app.get('/health', (_, res) => {
   res.json({ status: 'ok' });
 });
 

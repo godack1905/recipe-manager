@@ -1,6 +1,6 @@
 # Recipe Manager
 
-Recipe management and meal planning application with multi-language support (English / Spanish).
+Recipe management and meal planning application.
 
 ## How to run
 
@@ -10,6 +10,6 @@ docker-compose up --build
 
 
 ### Now we have the backend and the frontend running on:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3000/api/recipes
+- Frontend: http://localhost/
+- Backend: http://localhost:5000/api/recipes/
 

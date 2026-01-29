@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -15,13 +14,28 @@ import {
   Edit2,
   CheckCircle,
   XCircle,
+  Sparkles,
+  Info
 } from 'lucide-react';
+import { useRecipeStore } from '../../store/recipeStore';
+import { useAuthStore } from '../../store/authStore';
+import { ingredientsApi } from '../../lib/ingredientsApi';
+import { 
+  MEAL_TYPE_TAGS, 
+  suggestTagsFromTitle,
+  TAG_CATEGORIES,
+  isValidTag
+} from '../../constants/mealTags';
 import toast from 'react-hot-toast';
 
 const AddRecipeForm = () => {
   const navigate = useNavigate();
+  const { createRecipe } = useRecipeStore();
+  const { user } = useAuthStore();
+  
   const ingredientInputRef = useRef(null);
   const suggestionsRef = useRef(null);
+  const tagInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -51,12 +65,18 @@ const AddRecipeForm = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [filteredTags, setFilteredTags] = useState(MEAL_TYPE_TAGS.slice(0, 10));
 
   // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) &&
-          ingredientInputRef.current && !ingredientInputRef.current.contains(event.target)) {
+      if (
+        suggestionsRef.current && 
+        !suggestionsRef.current.contains(event.target) &&
+        ingredientInputRef.current && 
+        !ingredientInputRef.current.contains(event.target)
+      ) {
         setShowSuggestions(false);
       }
     };
@@ -64,6 +84,35 @@ const AddRecipeForm = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Cerrar sugerencias de tags al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        tagInputRef.current && 
+        !tagInputRef.current.contains(event.target)
+      ) {
+        setShowTagSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtrar tags según lo que se escribe
+  useEffect(() => {
+    if (currentTag.trim()) {
+      const filtered = MEAL_TYPE_TAGS.filter(tag => 
+        tag.toLowerCase().includes(currentTag.toLowerCase())
+      );
+      setFilteredTags(filtered);
+      setShowTagSuggestions(true);
+    } else {
+      setFilteredTags(MEAL_TYPE_TAGS.slice(0, 10));
+      setShowTagSuggestions(false);
+    }
+  }, [currentTag]);
 
   // Buscar ingredientes mientras se escribe
   useEffect(() => {
@@ -76,12 +125,10 @@ const AddRecipeForm = () => {
 
       setIsSearching(true);
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/ingredients?query=${encodeURIComponent(searchIngredient)}&lang=es&limit=10`
-        );
+        const response = await ingredientsApi.search(searchIngredient, 'es');
         
-        if (response.data.success && response.data.ingredients) {
-          setSuggestedIngredients(response.data.ingredients);
+        if (response.success && response.ingredients) {
+          setSuggestedIngredients(response.ingredients);
           setShowSuggestions(true);
         }
       } catch (error) {
@@ -99,7 +146,7 @@ const AddRecipeForm = () => {
     return () => clearTimeout(timer);
   }, [searchIngredient]);
 
-  // Cuando se selecciona un ingrediente - CORREGIDO
+  // Cuando se selecciona un ingrediente
   const selectIngredient = (ingredient) => {
     const defaultUnit = ingredient.allowedMeasures?.[0]?.name || '';
     
@@ -176,6 +223,24 @@ const AddRecipeForm = () => {
       });
     }
     
+    // Si no hay medidas específicas, añadir opciones genéricas
+    if (options.length === 0) {
+      const genericOptions = [
+        { value: 'unidades', label: 'unidades' },
+        { value: 'gramos', label: 'gramos' },
+        { value: 'kilos', label: 'kilos' },
+        { value: 'mililitros', label: 'mililitros' },
+        { value: 'litros', label: 'litros' },
+        { value: 'cucharadas', label: 'cucharadas' },
+        { value: 'cucharaditas', label: 'cucharaditas' },
+        { value: 'tazas', label: 'tazas' },
+        { value: 'pizca', label: 'pizca' },
+        { value: 'al gusto', label: 'al gusto' }
+      ];
+      
+      options.push(...genericOptions);
+    }
+    
     return options;
   };
 
@@ -201,25 +266,29 @@ const AddRecipeForm = () => {
       return;
     }
     
-    // Validar unidad permitida
-    const isValidUnit = currentIngredient.ingredientData.allowedMeasures?.some(
-      measure => measure.name === currentIngredient.unit
-    );
+    // Validar unidad permitida (si hay medidas específicas)
+    if (currentIngredient.ingredientData.allowedMeasures && currentIngredient.ingredientData.allowedMeasures.length > 0) {
+      const isValidUnit = currentIngredient.ingredientData.allowedMeasures.some(
+        measure => measure.name === currentIngredient.unit
+      );
 
-    if (!isValidUnit) {
-      toast.error(`Unidad no permitida. Permitidas: ${currentIngredient.ingredientData.allowedMeasures.map(m => m.name).join(', ')}`);
-      return;
+      if (!isValidUnit) {
+        const allowedUnits = currentIngredient.ingredientData.allowedMeasures.map(m => m.name).join(', ');
+        toast.error(`Unidad no permitida. Permitidas: ${allowedUnits}`);
+        return;
+      }
     }
 
     // Preparar el ingrediente
-    const quantity = currentIngredient.quantity || 0;
+    const quantity = parseFloat(currentIngredient.quantity) || 0;
 
     const newIngredient = {
       ingredient: currentIngredient.ingredient,
+      ingredientId: currentIngredient.ingredientId,
       ingredientData: currentIngredient.ingredientData,
       quantity: quantity,
       unit: currentIngredient.unit,
-      displayQuantity: currentIngredient.displayQuantity,
+      displayQuantity: currentIngredient.displayQuantity || currentIngredient.quantity.toString(),
       displayUnit: currentIngredient.unit,
       estimatedValue: quantity
     };
@@ -335,18 +404,32 @@ const AddRecipeForm = () => {
     }
   };
 
-  const addTag = () => {
-    const tag = currentTag.trim();
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag]
-      }));
-      setCurrentTag('');
-      toast.success('Etiqueta añadida');
-    } else if (formData.tags.includes(tag)) {
-      toast.error('Esta etiqueta ya está añadida');
+  // Añadir etiqueta
+  const addTag = (tag) => {
+    const tagToAdd = (tag || currentTag).trim();
+    if (!tagToAdd) return;
+    
+    // Validar que sea una etiqueta permitida
+    if (!MEAL_TYPE_TAGS.includes(tagToAdd)) {
+      toast.error('Esta etiqueta no está permitida');
+      return;
     }
+    
+    if (formData.tags.includes(tagToAdd)) {
+      toast.error('Esta etiqueta ya está añadida');
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      tags: [...prev.tags, tagToAdd]
+    }));
+    
+    if (!tag) {
+      setCurrentTag('');
+    }
+    
+    toast.success(`Etiqueta "${tagToAdd}" añadida`);
   };
 
   const removeTag = (tagToRemove) => {
@@ -355,6 +438,20 @@ const AddRecipeForm = () => {
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
     toast.success('Etiqueta eliminada');
+  };
+
+  // Sugerir etiquetas inteligentes
+  const suggestSmartTags = () => {
+    const suggestions = suggestTagsFromTitle(formData.title);
+    const newTags = [...new Set([...formData.tags, ...suggestions])];
+    
+    setFormData(prev => ({ ...prev, tags: newTags }));
+    
+    if (suggestions.length > 0) {
+      toast.success(`Se añadieron ${suggestions.length} etiquetas sugeridas`);
+    } else {
+      toast.info('No se encontraron sugerencias para este título');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -380,14 +477,6 @@ const AddRecipeForm = () => {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      };
-
       // Preparar datos para enviar
       const recipeToSend = {
         ...formData,
@@ -396,7 +485,7 @@ const AddRecipeForm = () => {
         steps: formData.steps.filter(step => step.trim() !== ''),
         ingredients: formData.ingredients.map(ing => {
           const baseIngredient = {
-            ingredient: ing.ingredient,
+            ingredient: ing.ingredientId || ing.ingredient,
             quantity: Number(ing.quantity),
             unit: ing.unit,
             displayQuantity: ing.displayQuantity || ing.quantity.toString(),
@@ -408,15 +497,10 @@ const AddRecipeForm = () => {
         })
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/recipes`, recipeToSend, config);
+      await createRecipe(recipeToSend);
       
       toast.success('¡Receta creada exitosamente!');
-      
-      if (response.data.id) {
-        navigate(`/recipes/${response.data.id}`);
-      } else {
-        navigate('/recipes');
-      }
+      navigate('/recipes');
 
     } catch (error) {
       console.error('Error creando receta:', error);
@@ -578,9 +662,10 @@ const AddRecipeForm = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ingrediente *
                 </label>
-                <div className="relative" ref={ingredientInputRef}>
+                <div className="relative">
                   <div className="relative">
                     <input
+                      ref={ingredientInputRef}
                       type="text"
                       value={searchIngredient}
                       onChange={handleSearchChange}
@@ -674,7 +759,7 @@ const AddRecipeForm = () => {
               </div>
             </div>
 
-            {/* Botones de acción - FUERA del grid */}
+            {/* Botones de acción */}
             <div className="mt-3 flex justify-between items-center">
               {editingIndex !== null && (
                 <button
@@ -847,64 +932,177 @@ const AddRecipeForm = () => {
           </div>
         </div>
 
-        {/* Sección 4: Etiquetas */}
+        {/* Sección 4: Etiquetas (SELECCIÓN ÚNICA) */}
         <div className="border-t pt-6">
-          <div className="flex items-center mb-4">
+          <div className="flex items-center mb-6">
             <div className="p-2 bg-orange-100 rounded-lg mr-3">
               <TagIcon className="h-6 w-6 text-orange-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">
-              Etiquetas
-              <span className="ml-2 text-sm font-normal text-gray-500">
-                ({formData.tags.length} etiquetas)
-              </span>
-            </h2>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={currentTag}
-                onChange={(e) => setCurrentTag(e.target.value)}
-                placeholder="Ej: italiana, vegetariana, postre..."
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                className="px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {formData.tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="ml-1 text-orange-600 hover:text-orange-900"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Etiquetas
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({formData.tags.length} seleccionadas)
                 </span>
-              ))}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Selecciona las etiquetas que mejor describan tu receta
+              </p>
             </div>
-          ) : (
-            <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
-              <TagIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600">Añade etiquetas para categorizar tu receta</p>
+          </div>
+
+          {/* Ayuda */}
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-start space-x-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900">Etiquetas predefinidas</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Solo puedes seleccionar etiquetas de la lista. Esto ayuda a la IA a generar mejores planes.
+                </p>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Botón de sugerencias automáticas */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                const suggestions = suggestTagsFromTitle(formData.title);
+                const newTags = [...new Set([...formData.tags, ...suggestions])].filter(tag => 
+                  isValidTag(tag) && !formData.tags.includes(tag)
+                );
+                
+                if (newTags.length > 0) {
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    tags: [...prev.tags, ...newTags] 
+                  }));
+                  toast.success(`Se añadieron ${newTags.length} etiquetas sugeridas`);
+                } else {
+                  toast.info('No se encontraron sugerencias para este título');
+                }
+              }}
+              disabled={!formData.title || formData.title.length < 3}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Sugerir etiquetas automáticamente
+            </button>
+          </div>
+
+          {/* Tags organizados por categorías */}
+          <div className="space-y-8">
+            {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
+              <div key={category}>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">
+                  {category}
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {tags.map(tag => {
+                    const isSelected = formData.tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            // Quitar tag
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: prev.tags.filter(t => t !== tag)
+                            }));
+                            toast.success(`Etiqueta "${tag}" eliminada`);
+                          } else {
+                            // Añadir tag
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, tag]
+                            }));
+                            toast.success(`Etiqueta "${tag}" añadida`);
+                          }
+                        }}
+                        className={`
+                          inline-flex items-center px-4 py-2 rounded-lg border-2 transition-all duration-200
+                          ${isSelected 
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm' 
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                          }
+                        `}
+                      >
+                        <span className="font-medium">{tag}</span>
+                        {isSelected && (
+                          <Check className="h-4 w-4 ml-2 text-purple-600" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Etiquetas seleccionadas */}
+          <div className="mt-8 pt-6 border-t">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Etiquetas seleccionadas</h3>
+              <span className="text-sm text-gray-500">
+                {formData.tags.length} de {MEAL_TYPE_TAGS.length}
+              </span>
+            </div>
+            
+            {formData.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {formData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-lg border border-purple-200"
+                  >
+                    <span className="font-medium">{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          tags: prev.tags.filter(t => t !== tag)
+                        }));
+                        toast.success(`Etiqueta "${tag}" eliminada`);
+                      }}
+                      className="ml-2 text-purple-600 hover:text-purple-900 p-1 hover:bg-purple-200 rounded"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <TagIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">No hay etiquetas seleccionadas</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Selecciona etiquetas de las categorías de arriba
+                </p>
+              </div>
+            )}
+            
+            {/* Consejos */}
+            {formData.tags.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700">
+                  💡 <strong>Consejo:</strong> Para mejores resultados con la IA, incluye:
+                  <ul className="mt-1 ml-5 list-disc">
+                    {!formData.tags.some(tag => ['desayuno', 'almuerzo', 'merienda', 'cena'].includes(tag)) && (
+                      <li>Al menos un <strong>momento del día</strong> (desayuno, almuerzo, merienda o cena)</li>
+                    )}
+                    {!formData.tags.some(tag => ['plato único', 'primer plato', 'segundo plato', 'entrante', 'postre'].includes(tag)) && (
+                      <li>Al menos un <strong>tipo de plato</strong></li>
+                    )}
+                  </ul>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Botones de acción */}

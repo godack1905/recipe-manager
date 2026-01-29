@@ -44,11 +44,11 @@ const MealPlanSchema = new mongoose.Schema(
       }
     },
     meals: {
-      breakfast: MealSchema,
-      snack: MealSchema,
-      lunch: MealSchema,
-      afternoonSnack: MealSchema,
-      dinner: MealSchema
+      breakfast: [MealSchema],
+      snack: [MealSchema],
+      lunch: [MealSchema],
+      afternoonSnack: [MealSchema],
+      dinner: [MealSchema]
     }
   },
   { 
@@ -63,6 +63,11 @@ MealPlanSchema.index({ user: 1, date: 1 }, { unique: true });
 
 // Índice para búsqueda por rango de fechas
 MealPlanSchema.index({ user: 1, date: 1 });
+
+// Virtual para id
+MealPlanSchema.virtual("id").get(function() {
+  return this._id.toHexString();
+});
 
 // Virtual para día de la semana
 MealPlanSchema.virtual("dayOfWeek").get(function() {

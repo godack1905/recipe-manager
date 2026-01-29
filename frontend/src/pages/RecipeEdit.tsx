@@ -14,10 +14,18 @@ import {
   Edit2,
   CheckCircle,
   XCircle,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { useRecipeStore } from '../store/recipeStore';
 import { useAuthStore } from '../store/authStore';
 import { ingredientsApi, type IngredientData } from '../lib/ingredientsApi';
+import { 
+  MEAL_TYPE_TAGS, 
+  suggestTagsFromTitle,
+  TAG_CATEGORIES,
+  isValidTag 
+} from '../constants/mealTags';
 import toast from 'react-hot-toast';
 
 // Definir tipo para las medidas permitidas
@@ -52,6 +60,7 @@ const RecipeEdit = () => {
   
   const ingredientInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -82,6 +91,8 @@ const RecipeEdit = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [filteredTags, setFilteredTags] = useState<string[]>(MEAL_TYPE_TAGS);
 
   // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
@@ -99,6 +110,35 @@ const RecipeEdit = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Cerrar sugerencias de tags al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        tagInputRef.current && 
+        !tagInputRef.current.contains(event.target as Node)
+      ) {
+        setShowTagSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtrar tags según lo que se escribe
+  useEffect(() => {
+    if (currentTag.trim()) {
+      const filtered = MEAL_TYPE_TAGS.filter(tag => 
+        tag.toLowerCase().includes(currentTag.toLowerCase())
+      );
+      setFilteredTags(filtered);
+      setShowTagSuggestions(true);
+    } else {
+      setFilteredTags(MEAL_TYPE_TAGS.slice(0, 10)); // Mostrar primeros 10 por defecto
+      setShowTagSuggestions(false);
+    }
+  }, [currentTag]);
 
   // Buscar ingredientes mientras se escribe
   useEffect(() => {
@@ -161,7 +201,6 @@ const RecipeEdit = () => {
       // Cargar datos de ingredientes
       const ingredientsWithData = await Promise.all(
         (recipe.ingredients || []).map(async (ing: any) => {
-          // Si es un código numérico, buscar sus datos
           if (/^\d+$/.test(ing.ingredient)) {
             try {
               const response = await ingredientsApi.getById(ing.ingredient);
@@ -183,7 +222,6 @@ const RecipeEdit = () => {
             }
           }
           
-          // Si no es un código o no se pudo cargar
           return {
             ingredient: ing.ingredient,
             ingredientId: /^\d+$/.test(ing.ingredient) ? ing.ingredient : undefined,
@@ -242,7 +280,6 @@ const RecipeEdit = () => {
     const value = e.target.value;
     setSearchIngredient(value);
     
-    // Si se limpia el campo, resetear el ingrediente actual
     if (!value.trim()) {
       setCurrentIngredient(prev => ({
         ...prev,
@@ -279,7 +316,7 @@ const RecipeEdit = () => {
     }
   };
 
-  // Obtener todas las opciones de medida del ingrediente
+  // Obtener todas las opciones de medida
   const getAllMeasureOptions = () => {
     const options: Array<{value: string, label: string, baseValue?: number, baseUnit?: string}> = [];
     
@@ -294,7 +331,6 @@ const RecipeEdit = () => {
       });
     }
     
-    // Si no hay medidas específicas, añadir opciones genéricas
     if (options.length === 0) {
       const genericOptions = [
         { value: 'unidades', label: 'unidades' },
@@ -317,7 +353,6 @@ const RecipeEdit = () => {
 
   // Añadir o actualizar ingrediente
   const addIngredient = () => {
-    // Validaciones básicas
     if (!currentIngredient.ingredient.trim()) {
       toast.error('Por favor selecciona un ingrediente');
       return;
@@ -337,7 +372,6 @@ const RecipeEdit = () => {
       return;
     }
     
-    // Validar unidad permitida (si hay medidas específicas)
     if (currentIngredient.ingredientData.allowedMeasures && currentIngredient.ingredientData.allowedMeasures.length > 0) {
       const isValidUnit = currentIngredient.ingredientData.allowedMeasures.some(
         measure => measure.name === currentIngredient.unit
@@ -350,7 +384,6 @@ const RecipeEdit = () => {
       }
     }
 
-    // Preparar el ingrediente
     const quantity = parseFloat(currentIngredient.quantity) || 0;
 
     const newIngredient: FormIngredient = {
@@ -364,7 +397,6 @@ const RecipeEdit = () => {
       estimatedValue: quantity
     };
 
-    // Si estamos editando, actualizar
     if (editingIndex !== null) {
       const updatedIngredients = [...formData.ingredients];
       updatedIngredients[editingIndex] = newIngredient;
@@ -377,7 +409,6 @@ const RecipeEdit = () => {
       setEditingIndex(null);
       toast.success('Ingrediente actualizado');
     } else {
-      // Añadir nuevo
       setFormData(prev => ({
         ...prev,
         ingredients: [...prev.ingredients, newIngredient]
@@ -386,7 +417,6 @@ const RecipeEdit = () => {
       toast.success('Ingrediente añadido');
     }
 
-    // Limpiar campos
     resetIngredientForm();
   };
 
@@ -475,18 +505,32 @@ const RecipeEdit = () => {
     }
   };
 
-  const addTag = () => {
-    const tag = currentTag.trim();
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag]
-      }));
-      setCurrentTag('');
-      toast.success('Etiqueta añadida');
-    } else if (formData.tags.includes(tag)) {
-      toast.error('Esta etiqueta ya está añadida');
+  // Añadir etiqueta
+  const addTag = (tag?: string) => {
+    const tagToAdd = (tag || currentTag).trim();
+    if (!tagToAdd) return;
+    
+    // Validar que sea una etiqueta permitida
+    if (!MEAL_TYPE_TAGS.includes(tagToAdd as any)) {
+      toast.error('Esta etiqueta no está permitida');
+      return;
     }
+    
+    if (formData.tags.includes(tagToAdd)) {
+      toast.error('Esta etiqueta ya está añadida');
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      tags: [...prev.tags, tagToAdd]
+    }));
+    
+    if (!tag) {
+      setCurrentTag('');
+    }
+    
+    toast.success(`Etiqueta "${tagToAdd}" añadida`);
   };
 
   const removeTag = (tagToRemove: string) => {
@@ -497,7 +541,20 @@ const RecipeEdit = () => {
     toast.success('Etiqueta eliminada');
   };
 
-  // Añadir función handleCancel que estaba faltando
+  // Sugerir etiquetas inteligentes
+  const suggestSmartTags = () => {
+    const suggestions = suggestTagsFromTitle(formData.title);
+    const newTags = [...new Set([...formData.tags, ...suggestions])];
+    
+    setFormData(prev => ({ ...prev, tags: newTags }));
+    
+    if (suggestions.length > 0) {
+      toast.success(`Se añadieron ${suggestions.length} etiquetas sugeridas`);
+    } else {
+      toast.info('No se encontraron sugerencias para este título');
+    }
+  };
+
   const handleCancel = () => {
     if (window.confirm('¿Estás seguro de que quieres cancelar? Los cambios no guardados se perderán.')) {
       navigate(`/recipes/${id}`);
@@ -507,7 +564,6 @@ const RecipeEdit = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validaciones básicas
     if (!formData.title.trim()) {
       toast.error('El título es obligatorio');
       return;
@@ -527,7 +583,6 @@ const RecipeEdit = () => {
     setIsSubmitting(true);
 
     try {
-      // Preparar datos para enviar
       const recipeToSend = {
         ...formData,
         servings: Number(formData.servings),
@@ -1015,69 +1070,160 @@ const RecipeEdit = () => {
             </div>
           </div>
 
-          {/* Sección 4: Etiquetas */}
+          {/* Sección 4: Etiquetas (SELECCIÓN ÚNICA) */}
           <div className="border-t pt-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center mb-6">
               <div className="p-2 bg-orange-100 rounded-lg mr-3">
                 <TagIcon className="h-6 w-6 text-orange-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">
-                Etiquetas
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({formData.tags.length} etiquetas)
-                </span>
-              </h2>
-            </div>
-
-            <div className="mb-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={currentTag}
-                  onChange={(e) => setCurrentTag(e.target.value)}
-                  placeholder="Ej: italiana, vegetariana, postre..."
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addTag();
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-                <button
-                  type="button"
-                  onClick={addTag}
-                  className="px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {formData.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-1 text-orange-600 hover:text-orange-900"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Etiquetas
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({formData.tags.length} seleccionadas)
                   </span>
-                ))}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Selecciona las etiquetas que mejor describan tu receta
+                </p>
               </div>
-            ) : (
-              <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
-                <TagIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">Añade etiquetas para categorizar tu receta</p>
+            </div>
+
+            {/* Ayuda */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-start space-x-3">
+                <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-900">Etiquetas predefinidas</h4>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Solo puedes seleccionar etiquetas de la lista. Esto ayuda a la IA a generar mejores planes.
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Botón de sugerencias automáticas */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  const suggestions = suggestTagsFromTitle(formData.title);
+                  const newTags = [...new Set([...formData.tags, ...suggestions])].filter(tag => 
+                    isValidTag(tag) && !formData.tags.includes(tag)
+                  );
+                  
+                  if (newTags.length > 0) {
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      tags: [...prev.tags, ...newTags] 
+                    }));
+                    toast.success(`Se añadieron ${newTags.length} etiquetas sugeridas`);
+                  } else {
+                    toast.info('No se encontraron sugerencias para este título');
+                  }
+                }}
+                disabled={!formData.title || formData.title.length < 3}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Sugerir etiquetas automáticamente
+              </button>
+            </div>
+
+            {/* Tags organizados por categorías */}
+            <div className="space-y-8">
+              {Object.entries(TAG_CATEGORIES).map(([category, tags]) => (
+                <div key={category}>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">
+                    {category}
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {tags.map(tag => {
+                      const isSelected = formData.tags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              // Quitar tag
+                              setFormData(prev => ({
+                                ...prev,
+                                tags: prev.tags.filter(t => t !== tag)
+                              }));
+                              toast.success(`Etiqueta "${tag}" eliminada`);
+                            } else {
+                              // Añadir tag
+                              setFormData(prev => ({
+                                ...prev,
+                                tags: [...prev.tags, tag]
+                              }));
+                              toast.success(`Etiqueta "${tag}" añadida`);
+                            }
+                          }}
+                          className={`
+                            inline-flex items-center px-4 py-2 rounded-lg border-2 transition-all duration-200
+                            ${isSelected 
+                              ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm' 
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                            }
+                          `}
+                        >
+                          <span className="font-medium">{tag}</span>
+                          {isSelected && (
+                            <Check className="h-4 w-4 ml-2 text-purple-600" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Etiquetas seleccionadas */}
+            <div className="mt-8 pt-6 border-t">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Etiquetas seleccionadas</h3>
+                <span className="text-sm text-gray-500">
+                  {formData.tags.length} de {MEAL_TYPE_TAGS.length}
+                </span>
+              </div>
+              
+              {formData.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-lg border border-purple-200"
+                    >
+                      <span className="font-medium">{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            tags: prev.tags.filter(t => t !== tag)
+                          }));
+                          toast.success(`Etiqueta "${tag}" eliminada`);
+                        }}
+                        className="ml-2 text-purple-600 hover:text-purple-900 p-1 hover:bg-purple-200 rounded"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                  <TagIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 font-medium">No hay etiquetas seleccionadas</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Selecciona etiquetas de las categorías de arriba
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Botones de acción */}
