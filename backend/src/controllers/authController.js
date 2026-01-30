@@ -2,26 +2,31 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
+import { ApiError } from '../messages/ApiError.js';
+
+
+
 export const register = async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    // Validar campos requeridos
+    // Validation of required fields
     if (!username || !email || !password) {
-      return res.status(400).json({ error: "Todos los campos son requeridos" });
+      throwApiError(400, MESSAGE_CODES.MISSING_FIELDS);
     }
 
-    // Verificar si el usuario ya existe
+    // Verify if user or email already exists
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
     
     if (existingUser) {
-      return res.status(409).json({ 
-        error: "El usuario o email ya existen" 
-      });
+      throwApiError(409, MESSAGE_CODES.EXISTING_USER);
     }
 
+    // Hash password and create user
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({
       username,
@@ -29,30 +34,30 @@ export const register = async (req, res) => {
       passwordHash: hash
     });
 
-    res.status(201).json({ 
-      message: "Usuario creado exitosamente",
-      userId: user.id 
-    });
+    return sendSuccess(res, MESSAGE_CODES.USER_CREATED, { userId: user.id }, 201);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error interno del servidor" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in register:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
-  // Validar campos
+  // Basic validation
   if (!email || !password) {
-    return res.status(400).json({ error: "Email y contraseña son requeridos" });
+    throwApiError(400, MESSAGE_CODES.MISSING_FIELDS);
   }
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: "Credenciales inválidas" });
+    if (!user) throwApiError(401, MESSAGE_CODES.AUTH_UNAUTHORIZED);
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: "Credenciales inválidas" });
+    if (!valid) throwApiError(401, MESSAGE_CODES.AUTH_UNAUTHORIZED);
 
     const token = jwt.sign(
       { id: user.id },
@@ -60,7 +65,7 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({ 
+    return sendSuccess(res, MESSAGE_CODES.LOGIN_SUCCESS, {
       token,
       user: {
         id: user.id,
@@ -69,7 +74,10 @@ export const login = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error interno del servidor" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in login:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };

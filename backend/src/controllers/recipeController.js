@@ -4,40 +4,25 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Para __dirname en ES modules
+
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
+import { ApiError } from '../messages/ApiError.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Leer ingredientes una vez al iniciar
 const ingredientsPath = path.join(__dirname, "../data/ingredients.json");
 const ingredientsData = JSON.parse(fs.readFileSync(ingredientsPath, "utf-8"));
 
-// Tabla de equivalencias para medidas abstractas
-const abstractMeasureEquivalents = {
-  'chorrito': { baseUnit: 'ml', value: 10 },
-  'pizca': { baseUnit: 'g', value: 0.5 },
-  'al-gusto': { baseUnit: 'g', value: 5 },
-  'puñado': { baseUnit: 'g', value: 30 },
-  'chorro': { baseUnit: 'ml', value: 25 },
-  'cucharada-colmada': { baseUnit: 'g', value: 15 },
-  'cucharada-rasa': { baseUnit: 'g', value: 10 },
-  'pizca-grande': { baseUnit: 'g', value: 2 },
-  'vaso': { baseUnit: 'ml', value: 200 },
-  'taza': { baseUnit: 'ml', value: 250 }
-};
-
+// Function to get ingredient ID by name and validate unit
 const getIngredientId = (identifier, unit) => {
-  // Primero por ID
-  let ingredient = ingredientsData.find(i => i.id === identifier);
 
-  if (!ingredient) {
-    // Si no es un ID, buscar por nombre
-    ingredient = ingredientsData.find(
-      i =>
-        i.names.es.toLowerCase() === identifier.toLowerCase() ||
-        i.names.en.toLowerCase() === identifier.toLowerCase()
-    );
-  }
+  ingredient = ingredientsData.find(
+    i =>
+      i.names.es.toLowerCase() === identifier.toLowerCase() ||
+      i.names.en.toLowerCase() === identifier.toLowerCase()
+  );
 
   if (!ingredient) {
     throw new Error(`Ingrediente no encontrado: ${identifier}`);
@@ -55,7 +40,7 @@ const getIngredientId = (identifier, unit) => {
   return ingredient.id;
 };
 
-// Función para procesar ingredientes (nueva)
+// Function to process ingredients list
 const processIngredients = (ingredients) => {
   return ingredients.map((ing) => {
     let ingredientId;
@@ -63,28 +48,14 @@ const processIngredients = (ingredients) => {
     // Si es medida abstracta, obtener la unidad base
     let finalUnit = ing.unit;
     let finalQuantity = ing.quantity;
-    let isAbstract = ing.isAbstract || false;
-    let abstractMeasure = ing.abstractMeasure || null;
     let displayQuantity = ing.displayQuantity || ing.quantity.toString();
     let displayUnit = ing.displayUnit || ing.unit;
-    let estimatedValue = ing.estimatedValue || ing.quantity;
     
-    if (isAbstract && abstractMeasure) {
-      // Para medidas abstractas, usamos la unidad base
-      const equivalent = abstractMeasureEquivalents[abstractMeasure];
-      if (equivalent) {
-        finalUnit = equivalent.baseUnit;
-        // Convertir si es necesario (ej: 2 chorritos = 20ml)
-        finalQuantity = parseFloat(ing.displayQuantity || 1) * equivalent.value;
-        estimatedValue = finalQuantity;
-      }
-    }
-    
-    // Obtener el ID del ingrediente
+    // Try to get ingredient ID with provided unit
     try {
       ingredientId = getIngredientId(ing.ingredient, finalUnit);
     } catch (error) {
-      // Si falla con la unidad base, intentar con la unidad original
+      // If fails get ID without unit
       ingredientId = getIngredientId(ing.ingredient, null);
     }
     
@@ -92,12 +63,8 @@ const processIngredients = (ingredients) => {
       ingredient: ingredientId,
       quantity: finalQuantity,
       unit: finalUnit,
-      // Campos extendidos
       displayQuantity: displayQuantity,
-      displayUnit: displayUnit,
-      isAbstract: isAbstract,
-      abstractMeasure: abstractMeasure,
-      estimatedValue: estimatedValue
+      displayUnit: displayUnit
     };
   });
 };
@@ -112,16 +79,19 @@ export const createRecipe = async (req, res) => {
       createdBy: req.user.id
     });
 
-    res.status(201).json(recipe);
+    return sendSuccess(res, MESSAGE_CODES.RECIPE_CREATED, { recipe }, 201);
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in createRecipe:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
 export const getRecipes = async (req, res) => {
   try {
-    const { search } = req.query; // Quitamos limit y page
+    const { search } = req.query;
     
     let query = {
       $or: [
@@ -134,25 +104,20 @@ export const getRecipes = async (req, res) => {
       query.title = { $regex: search, $options: "i" };
     }
 
-    // Sin limit ni skip - traemos TODAS las recetas
+    // We obtain all the recipes matching the query
     const recipes = await Recipe.find(query)
       .populate("createdBy", "username")
       .sort({ createdAt: -1 });
 
     const total = recipes.length;
 
-    res.json({
-      recipes,
-      pagination: {
-        total,
-        page: 1,
-        limit: total,
-        pages: 1
-      }
-    });
+    return sendSuccess(res, MESSAGE_CODES.RECIPES_FOUND, { recipes, total }, 200);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al obtener recetas" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in getRecipes:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -161,10 +126,12 @@ export const getRecipeById = async (req, res) => {
     const recipe = await Recipe.findById(req.params.id)
       .populate("createdBy", "username email");
 
-    if (!recipe) return res.status(404).json({ error: "Receta no encontrada" });
+    if (!recipe) {
+      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
+    }
 
     if (!recipe.isPublic && recipe.createdBy.id.toString() !== req.user.id) {
-      return res.status(403).json({ error: "No tienes permiso para ver esta receta" });
+      throwApiError(403, MESSAGE_CODES.AUTH_UNAUTHORIZED);
     }
 
     const recipeObj = recipe.toObject ? recipe.toObject() : recipe;
@@ -190,23 +157,28 @@ export const getRecipeById = async (req, res) => {
       });
     }
 
-    res.json(recipeObj);
+    return sendSuccess(res, MESSAGE_CODES.RECIPE_RETRIEVED, recipeObj);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al obtener la receta" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in getRecipeById:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
 export const updateRecipe = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
-    if (!recipe) return res.status(404).json({ error: "Receta no encontrada" });
-
-    if (recipe.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ error: "No eres el dueño de esta receta" });
+    if (!recipe) {
+      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
     }
 
-    // Si se actualizan ingredientes, procesarlos
+    if (recipe.createdBy.toString() !== req.user.id) {
+      throwApiError(403, MESSAGE_CODES.AUTH_UNAUTHORIZED);
+    }
+
+    // If ingredients are being updated, process them
     if (req.body.ingredients) {
       req.body.ingredients = processIngredients(req.body.ingredients);
     }
@@ -214,27 +186,35 @@ export const updateRecipe = async (req, res) => {
     Object.assign(recipe, req.body);
     await recipe.save();
 
-    res.json(recipe);
+    return sendSuccess(res, MESSAGE_CODES.RECIPE_UPDATED, recipe);
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in updateRecipe:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
 export const deleteRecipe = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
-    if (!recipe) return res.status(404).json({ error: "Receta no encontrada" });
+    if (!recipe) {
+      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);S
+    }
 
     if (recipe.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ error: "No eres el dueño de esta receta" });
+      throwApiError(403, MESSAGE_CODES.AUTH_UNAUTHORIZED);
     }
 
     await recipe.deleteOne();
-    res.json({ message: "Receta eliminada exitosamente" });
+    return sendSuccess(res, MESSAGE_CODES.RECIPE_DELETED);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al eliminar la receta" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in deleteRecipe:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -242,16 +222,13 @@ export const getUserFavorites = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate('favorites');
     
-    res.json({
-      success: true,
-      favorites: user.favorites || []
-    });
+    return sendSuccess(res, MESSAGE_CODES.USER_FAVORITES_RETRIEVED, { favorites: user.favorites });
   } catch (err) {
-    console.error('Error al obtener favoritos:', err);
-    res.status(500).json({ 
-      success: false,
-      error: 'Error al obtener recetas favoritas' 
-    });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in getUserFavorites:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -260,56 +237,49 @@ export const toggleFavorite = async (req, res) => {
     const user = await User.findById(req.user.id);
     const recipeId = req.params.id;
     
-    // Verificar que la receta existe
+    // Verify recipe exists
     const recipe = await Recipe.findById(recipeId);
     if (!recipe) {
-      return res.status(404).json({ error: "Receta no encontrada" });
+      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
     }
     
     const index = user.favorites.indexOf(recipeId);
     if (index === -1) {
-      // Añadir a favoritos
+      // Add to favorites
       user.favorites.push(recipeId);
       await user.save();
-      res.json({ 
-        message: "Receta añadida a favoritos",
-        isFavorite: true,
-        favorites: user.favorites 
-      });
+      return sendSuccess(res, MESSAGE_CODES.USER_FAVORITES_UPDATED, { favorites: user.favorites });
     } else {
-      // Quitar de favoritos
+      // Delete from favorites
       user.favorites.splice(index, 1);
       await user.save();
-      res.json({ 
-        message: "Receta eliminada de favoritos",
-        isFavorite: false,
-        favorites: user.favorites 
-      });
+      return sendSuccess(res, MESSAGE_CODES.USER_FAVORITES_UPDATED, { favorites: user.favorites });
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al actualizar favoritos" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in toggleFavorite:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
-// Función para generar lista de compras (nueva)
+// Function to generate shopping list from meal plans (future implementation)
 export const generateShoppingList = async (req, res) => {
   try {
     const { startDate, endDate, mealPlanIds } = req.body;
     
-    // Aquí implementarías la lógica para:
-    // 1. Obtener recetas de planes de comida en el rango de fechas
-    // 2. Sumar ingredientes (usando quantity para medidas abstractas)
-    // 3. Convertir a unidades estándar
-    // 4. Agrupar por ingrediente
+    // Here would go the logic to generate the shopping list based on meal plans
+    // 1. Obtain recipes from meal plans within date range or specified IDs
+    // 2. Add up ingredient quantities
+    // 4. Return the shopping list
     
-    res.json({
-      success: true,
-      shoppingList: [], // Tu lista de compras generada
-      estimatedTotal: 0
-    });
+    return sendSuccess(res, MESSAGE_CODES.SHOPPING_LIST_GENERATED, { shoppingList: [] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al generar lista de compras" });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in generateShoppingList:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };

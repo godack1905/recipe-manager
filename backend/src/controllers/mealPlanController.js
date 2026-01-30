@@ -1,6 +1,10 @@
 import MealPlan from "../models/MealPlan.js";
 import Recipe from "../models/Recipe.js";
 
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
+import { ApiError } from '../messages/ApiError.js';
+
 export const getMealPlans = async (req, res) => {
   try {
     const { start, end } = req.query;
@@ -33,17 +37,16 @@ export const getMealPlans = async (req, res) => {
       })
       .sort({ date: 1 });
 
-    res.json({
-      success: true,
+    return sendSuccess(res, MESSAGE_CODES.MEALPLANS_RETRIEVED, {
       count: plans.length,
       mealPlans: plans
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false,
-      error: "Error al obtener planes de comida" 
-    });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in getMealPlans:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -52,21 +55,15 @@ export const upsertMealPlan = async (req, res) => {
     const { date, meals } = req.body;
 
     if (!date) {
-      return res.status(400).json({ 
-        success: false,
-        error: "La fecha es requerida" 
-      });
+      throwApiError(400, MESSAGE_CODES.DATE_REQUIRED);
     }
 
     const planDate = new Date(date);
     if (isNaN(planDate.getTime())) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Fecha no válida" 
-      });
+      throwApiError(400, MESSAGE_CODES.INVALID_DATE);
     }
 
-    // Verificar si ya existe un plan para esta fecha
+    // Verify if a meal plan already exists for the date
     const existingPlan = await MealPlan.findOne({
       user: req.user.id,
       date: planDate
@@ -74,49 +71,45 @@ export const upsertMealPlan = async (req, res) => {
 
     let validatedMeals = {};
     
-    // Si existe un plan, usar sus comidas como base
+    // If plan exists, start with its meals
     if (existingPlan && existingPlan.meals) {
       validatedMeals = { ...existingPlan.meals.toObject() };
     }
 
-    // Procesar solo las comidas que se envían en la petición
+    // Validate and process the incoming meals
     if (meals) {
       const mealTypes = Object.keys(meals);
       
       for (const mealType of mealTypes) {
         const mealArray = meals[mealType];
         
-        // Si se envía null o undefined, eliminar esa comida del plan
+        // If the meal array is null or undefined, set to empty array
         if (mealArray === null || mealArray === undefined) {
           validatedMeals[mealType] = [];
           continue;
         }
         
-        // Asegurarse de que sea un array
+        // Make sure it's an array
         if (!Array.isArray(mealArray)) {
-          return res.status(400).json({ 
-            success: false,
-            error: `${mealType} debe ser un array de comidas` 
-          });
+          throwApiError(400, MESSAGE_CODES.INVALID_MEAL_TYPE);
         }
         
         validatedMeals[mealType] = [];
         
         for (const meal of mealArray) {
-          // Si el meal es null o vacío, saltar
+          // Skip if meal or recipe is missing
           if (!meal || !meal.recipe) {
             continue;
           }
           
           let recipe;
           
-          // Buscar por ID (si es un ObjectId válido)
+          // Search recipe by ID or title
           if (meal.recipe.match(/^[0-9a-fA-F]{24}$/)) {
             recipe = await Recipe.findById(meal.recipe);
           } 
-          // Si no es un ObjectId, buscar por título
+          // If not a valid ID, search by title
           else {
-            // Buscar receta por título (entre las públicas o del usuario)
             recipe = await Recipe.findOne({
               title: { $regex: new RegExp(meal.recipe, 'i') },
               $or: [
@@ -127,21 +120,15 @@ export const upsertMealPlan = async (req, res) => {
           }
 
           if (!recipe) {
-            return res.status(404).json({ 
-              success: false,
-              error: `Receta no encontrada para ${mealType}: "${meal.recipe}"` 
-            });
+            throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
           }
 
-          // Verificar permisos
+          // Verify permissions
           if (!recipe.isPublic && recipe.createdBy.toString() !== req.user.id) {
-            return res.status(403).json({ 
-              success: false,
-              error: `No tienes permiso para usar la receta "${recipe.title}"` 
-            });
+            throwApiError(403, MESSAGE_CODES.AUTH_UNAUTHORIZED);
           }
 
-          // Agregar la comida al array
+          // Add validated meal
           validatedMeals[mealType].push({
             recipe: recipe.id,
             people: Math.min(Math.max(meal.people || 4, 1), 20),
@@ -151,7 +138,7 @@ export const upsertMealPlan = async (req, res) => {
       }
     }
 
-    // Filtrar comidas que sean arrays vacíos
+    // Remove empty meal types
     Object.keys(validatedMeals).forEach(key => {
       if (!validatedMeals[key] || validatedMeals[key].length === 0) {
         delete validatedMeals[key];
@@ -192,33 +179,30 @@ export const upsertMealPlan = async (req, res) => {
       select: 'title imageUrl servings prepTime difficulty'
     });
 
-    res.json({
-      success: true,
-      message: "Plan de comida guardado exitosamente",
+    return sendSuccess(res, MESSAGE_CODES.MEALPLAN_ADDED, {
       mealPlan: plan
     });
+
   } catch (err) {
-    console.error("Error en upsertMealPlan:", err);
-    
+
+    // If it's already an ApiError, rethrow it
+    if (err instanceof ApiError) {
+      return next(err);
+    }
+
+    // Mongoose validation error
     if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(val => val.message);
-      return res.status(400).json({ 
-        success: false,
-        error: messages.join(', ') 
-      });
+      const messages = Object.values(err.errors).map(val => val.message).join(', ');
+      throwApiError(400, MESSAGE_CODES.VALIDATION_ERROR, { messages });
     }
-    
+
+    // Duplicate key error
     if (err.code === 11000) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Ya existe un plan de comida para esta fecha" 
-      });
+      throwApiError(400, MESSAGE_CODES.DUPLICATE_MEALPLAN);
     }
-    
-    res.status(400).json({ 
-      success: false,
-      error: err.message || "Error al guardar el plan de comida" 
-    });
+
+    // Other errors
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -227,18 +211,12 @@ export const deleteMealPlan = async (req, res) => {
     const { date } = req.params;
     
     if (!date) {
-      return res.status(400).json({ 
-        success: false,
-        error: "La fecha es requerida" 
-      });
+      throwApiError(400, MESSAGE_CODES.DATE_REQUIRED);
     }
 
     const planDate = new Date(date);
     if (isNaN(planDate.getTime())) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Fecha no válida" 
-      });
+      throwApiError(400, MESSAGE_CODES.INVALID_DATE);
     }
 
     const result = await MealPlan.deleteOne({
@@ -247,22 +225,17 @@ export const deleteMealPlan = async (req, res) => {
     });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ 
-        success: false,
-        error: "No se encontró un plan de comida para esta fecha" 
-      });
+      throwApiError(400, MESSAGE_CODES.MEALPLAN_NOT_FOUND);
     }
 
-    res.json({
-      success: true,
-      message: "Plan de comida eliminado exitosamente"
-    });
+    return sendSuccess(res, MESSAGE_CODES.MEALPLAN_DELETED);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false,
-      error: "Error al eliminar plan de comida" 
-    });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in deleteMealPlan:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };
 
@@ -272,30 +245,21 @@ export const updateMeal = async (req, res) => {
     const { recipe, people, notes } = req.body;
 
     if (!date || !mealType) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Fecha y tipo de comida son requeridos" 
-      });
+      throwApiError(400, MESSAGE_CODES.MISSING_FIELDS);
     }
 
     const planDate = new Date(date);
     if (isNaN(planDate.getTime())) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Fecha no válida" 
-      });
+      throwApiError(400, MESSAGE_CODES.INVALID_DATE);
     }
 
-    // Tipos de comida válidos
+    // Validation of mealType
     const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snack', 'afternoonSnack'];
     if (!validMealTypes.includes(mealType)) {
-      return res.status(400).json({ 
-        success: false,
-        error: `Tipo de comida no válido. Usa: ${validMealTypes.join(', ')}` 
-      });
+      throwApiError(400, MESSAGE_CODES.INVALID_MEAL_TYPE);
     }
 
-    // Buscar receta si se proporciona
+    // Search recipe if provided
     let recipeDoc = null;
     if (recipe) {
       if (recipe.match(/^[0-9a-fA-F]{24}$/)) {
@@ -311,29 +275,22 @@ export const updateMeal = async (req, res) => {
       }
 
       if (!recipeDoc) {
-        return res.status(404).json({ 
-          success: false,
-          error: `Receta no encontrada: "${recipe}"` 
-        });
+        throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
       }
 
-      // Verificar permisos
+      // Verify permissions
       if (!recipeDoc.isPublic && recipeDoc.createdBy.toString() !== req.user.id) {
-        return res.status(403).json({ 
-          success: false,
-          error: `No tienes permiso para usar la receta "${recipeDoc.title}"` 
-        });
+        throwApiError(403, MESSAGE_CODES.AUTH_UNAUTHORIZED);
       }
     }
 
-    // Encontrar o crear el plan
+    // Find or create meal plan
     let plan = await MealPlan.findOne({
       user: req.user.id,
       date: planDate
     });
 
     if (!plan) {
-      // Crear nuevo plan si no existe
       plan = new MealPlan({
         user: req.user.id,
         date: planDate,
@@ -341,12 +298,12 @@ export const updateMeal = async (req, res) => {
       });
     }
 
-    // Actualizar o eliminar la comida específica
+    // Update the specific meal
     if (recipe === null || recipe === undefined) {
-      // Eliminar esta comida del plan
+      // Delete the meal from the plan
       plan.meals[mealType] = undefined;
     } else {
-      // Actualizar o crear la comida
+      // Update or add the meal
       plan.meals[mealType] = {
         recipe: recipeDoc.id,
         people: people || 4,
@@ -354,14 +311,14 @@ export const updateMeal = async (req, res) => {
       };
     }
 
-    // Eliminar comidas undefined
+    // Delete mealType if it's undefined
     if (plan.meals[mealType] === undefined) {
       delete plan.meals[mealType];
     }
 
     await plan.save();
     
-    // Populate para devolver información completa
+    // Populate the meal plan before returning
     await plan.populate({
       path: 'meals.breakfast.recipe',
       select: 'title imageUrl servings prepTime difficulty'
@@ -383,16 +340,12 @@ export const updateMeal = async (req, res) => {
       select: 'title imageUrl servings prepTime difficulty'
     });
 
-    res.json({
-      success: true,
-      message: `Comida ${mealType} actualizada exitosamente`,
-      mealPlan: plan
-    });
+    return sendSuccess(res, MESSAGE_CODES.MEALPLAN_UPDATED, { mealPlan: plan });
   } catch (err) {
-    console.error("Error en updateMeal:", err);
-    res.status(400).json({ 
-      success: false,
-      error: err.message || "Error al actualizar la comida" 
-    });
+    if (err instanceof ApiError) 
+      return next(err);
+
+    console.error("Error in updateMeal:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 };

@@ -1,21 +1,23 @@
 import mongoose from "mongoose";
 
+import { MESSAGE_CODES } from "../messages/messageCodes.js";
+
 const UserSchema = new mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, "El nombre de usuario es requerido"],
+      required: [true, MESSAGE_CODES.USERNAME_REQUIRED],
       unique: true,
       trim: true,
-      minlength: [3, "El nombre de usuario debe tener al menos 3 caracteres"],
-      maxlength: [30, "El nombre de usuario no puede exceder 30 caracteres"]
+      minlength: [3, MESSAGE_CODES.USERNAME_TOO_SHORT],
+      maxlength: [30, MESSAGE_CODES.USERNAME_TOO_LONG]
     },
     email: {
       type: String,
-      required: [true, "El email es requerido"],
+      required: [true, MESSAGE_CODES.EMAIL_REQUIRED],
       unique: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, "Por favor ingresa un email válido"]
+      match: [/^\S+@\S+\.\S+$/, MESSAGE_CODES.INVALID_EMAIL]
     },
     passwordHash: {
       type: String,
@@ -33,18 +35,18 @@ const UserSchema = new mongoose.Schema(
     },
     bio: {
       type: String,
-      maxlength: [200, "La biografía no puede exceder 200 caracteres"],
+      maxlength: [200, MESSAGE_CODES.BIO_TOO_LONG],
       default: ""
     }
   },
   { timestamps: true }
 );
 
-// Índices
+// indexes for faster lookups
 UserSchema.index({ username: 1 });
 UserSchema.index({ email: 1 });
 
-// Método para no enviar passwordHash en respuestas
+// Method to hide sensitive info when converting to JSON
 UserSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.passwordHash;

@@ -1,103 +1,78 @@
 import express from 'express';
 import axios from 'axios';
 
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
+
 const router = express.Router();
 
-// Endpoint PRINCIPAL - CON GROQ API
+// Principal endpoint with GROQ API integration
 router.post('/generate-meal-plan', async (req, res) => {
   try {
     const { favoriteRecipes, preferences, selectedMealTypes } = req.body;
 
-    // Validaciones
+    // Basic validations
     if (!favoriteRecipes?.length) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'No hay recetas favoritas disponibles' 
-      });
+      throwApiError(400, MESSAGE_CODES.NO_FAVORITE_RECIPES);
     }
 
     if (!selectedMealTypes?.length) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Selecciona al menos un tipo de comida' 
-      });
+      throwApiError(400, MESSAGE_CODES.MEAL_TYPE_REQUIRED);
     }
 
-    console.log('🚀 Generando plan:', {
-      dias: preferences.duration,
-      recetas: favoriteRecipes.length,
-      comidas: selectedMealTypes
-    });
 
-    // Intentar con Groq API primero
-    console.log('🤖 Intentando con Groq API...');
+    // Try generating with GROQ API first
     const aiPlan = await generateWithGroq(favoriteRecipes, preferences, selectedMealTypes);
     
     if (aiPlan && Object.keys(aiPlan).length > 0) {
-      console.log('✅ Plan IA generado:', Object.keys(aiPlan).length, 'días');
-      return res.json({ 
-        success: true, 
-        plan: aiPlan,
-        source: 'groq'
-      });
+      if (!aiPlan || Object.keys(aiPlan).length === 0) {
+        throwApiError(500, MESSAGE_CODES.MEALPLAN_GENERATION_FAILED);
+      }
+      return sendSuccess(res, MESSAGE_CODES.MEALPLAN_GENERATED, { mealPlan: aiPlan, source: 'groq' }, 201);
     }
 
-    // Si falla, usar algoritmo inteligente
-    console.log('⚠️ Groq falló, usando algoritmo inteligente');
+    // If GROQ fails, fallback to smart algorithm
     const smartPlan = generateSmartAlgorithmPlan(favoriteRecipes, preferences, selectedMealTypes);
-    
-    res.json({ 
-      success: true, 
-      plan: smartPlan,
-      source: 'algorithm'
-    });
+    if (!smartPlan || Object.keys(smartPlan).length === 0) {
+      throwApiError(500, MESSAGE_CODES.MEALPLAN_GENERATION_FAILED);
+    }
+    return sendSuccess(res, MESSAGE_CODES.MEALPLAN_GENERATED, { mealPlan: smartPlan, source: 'algorithm' }, 201);
     
   } catch (error) {
-    console.error('💥 Error:', error.message);
     
-    // Fallback de emergencia
+    // Emergency fallback: simple algorithm
     try {
       const { favoriteRecipes, preferences, selectedMealTypes } = req.body;
       const fallbackPlan = generateSimpleFallback(favoriteRecipes, preferences, selectedMealTypes);
-      
-      res.json({ 
-        success: true, 
-        plan: fallbackPlan,
-        source: 'fallback'
-      });
-    } catch {
-      res.status(500).json({ 
-        success: false, 
-        error: 'Error crítico' 
-      });
+      if (!fallbackPlan || Object.keys(fallbackPlan).length === 0) {
+        throwApiError(500, MESSAGE_CODES.MEALPLAN_GENERATION_FAILED);
+      }
+      return sendSuccess(res, MESSAGE_CODES.MEALPLAN_GENERATED, { mealPlan: fallbackPlan, source: 'fallback' }, 201);
+    } catch (err) {
+      next(err);
     }
   }
 });
 
-// GENERACIÓN CON GROQ API - NUEVO ENFOQUE: GENERACIÓN POR PARTES
+// Generate meal plan using GROQ API
 async function generateWithGroq(recipes, preferences, selectedMealTypes) {
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
   
-  // Verificar si la API key está configurada
+  // Verify API key
   if (!GROQ_API_KEY) {
-    console.log('⚠️ GROQ_API_KEY no configurada en .env');
-    console.log('📝 Ve a: https://console.groq.com/keys para obtener una key gratis');
-    console.log('📝 Registro inmediato, sin configuración compleja');
     return null;
   }
   
   try {
-    // Enfoque por partes: generar 7 días a la vez para mejor control
+    // Create meal plan in batches if duration is long
     const totalDays = preferences.duration;
-    const batchSize = 7; // Generar por semanas
+    const batchSize = 7; // Generate one week at a time
     const allPlans = {};
     
     for (let batchStart = 0; batchStart < totalDays; batchStart += batchSize) {
       const batchEnd = Math.min(batchStart + batchSize, totalDays);
       const batchDays = batchEnd - batchStart;
-      
-      console.log(`\n📅 Generando lote ${Math.floor(batchStart/batchSize) + 1}: días ${batchStart + 1} a ${batchEnd}`);
-      
+            
       const batchPrompt = buildStructuredGroqPrompt(recipes, {
         ...preferences,
         duration: batchDays
@@ -106,48 +81,44 @@ async function generateWithGroq(recipes, preferences, selectedMealTypes) {
       const batchPlan = await callGroqWithRetry(batchPrompt, recipes, selectedMealTypes);
       
       if (!batchPlan) {
-        console.log(`❌ Falló el lote ${Math.floor(batchStart/batchSize) + 1}`);
         return null;
       }
       
-      // Combinar con el plan general
+      // Merge batch plan into overall plan
       Object.assign(allPlans, batchPlan);
       
-      // Pequeña pausa entre lotes para evitar rate limits
+      // Small delay between batches to avoid rate limits
       if (batchEnd < totalDays) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    // Validación final completa
+    // Final validation of complete plan
     const validatedPlan = validateCompletePlan(allPlans, recipes, selectedMealTypes, preferences.duration);
     
     if (validatedPlan && Object.keys(validatedPlan).length === preferences.duration) {
-      console.log(`✅ Plan completo generado: ${Object.keys(validatedPlan).length} días`);
       return validatedPlan;
     }
     
     return null;
     
   } catch (error) {
-    console.error('❌ Error general con Groq API:', error.message);
     return null;
   }
 }
 
-// LLAMADA A GROQ CON REINTENTOS Y MODELOS ALTERNATIVOS
+// GROQ API call with retries and multiple models
 async function callGroqWithRetry(prompt, recipes, selectedMealTypes, maxRetries = 3) {
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
   const models = [
-    "llama-3.1-70b-versatile",     // Modelo principal (más preciso)
-    "llama-3.3-70b-versatile",     // Alternativa potente
-    "llama-3.1-8b-instant",        // Alternativa rápida
+    "llama-3.1-70b-versatile",     // First model (the best option)
+    "llama-3.3-70b-versatile",     // Powerful alternative
+    "llama-3.1-8b-instant",        // Faster, smaller model
   ];
   
   for (let retry = 0; retry < maxRetries; retry++) {
     for (const model of models) {
       try {
-        console.log(`🔄 Intento ${retry + 1}, modelo: ${model}`);
         
         const response = await axios.post(
           'https://api.groq.com/openai/v1/chat/completions',
@@ -157,7 +128,7 @@ async function callGroqWithRetry(prompt, recipes, selectedMealTypes, maxRetries 
               role: "user",
               content: prompt
             }],
-            temperature: 0.2, // MUY BAJA para máxima consistencia
+            temperature: 0.2,
             max_tokens: 3000,
             response_format: { type: "json_object" }
           },
@@ -169,51 +140,42 @@ async function callGroqWithRetry(prompt, recipes, selectedMealTypes, maxRetries 
             }
           }
         );
-
-        console.log(`✅ Respuesta recibida de ${model}`);
         
         const resultText = response.data?.choices?.[0]?.message?.content;
         
         if (!resultText) {
-          console.log(`❌ Respuesta vacía de ${model}`);
           continue;
         }
         
-        console.log('📄 Longitud respuesta:', resultText.length, 'caracteres');
         
         const parsedPlan = parseAndValidateBatch(resultText, recipes, selectedMealTypes);
         
         if (parsedPlan) {
-          console.log(`✅ Lote generado exitosamente con ${model}`);
           return parsedPlan;
         }
         
       } catch (error) {
-        console.error(`❌ Error con modelo ${model}:`, error.message);
         
         if (error.response?.status === 429) {
-          console.log('⏳ Rate limit, esperando 2 segundos...');
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
     
     if (retry < maxRetries - 1) {
-      console.log(`⏳ Reintento ${retry + 2} en 1 segundo...`);
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
   
-  console.log('❌ Todos los intentos fallaron');
   return null;
 }
 
-// PROMPT ESTRUCTURADO CON TAGS ESPECÍFICOS
+// STRUCTURED PROMPT BUILDING
 function buildStructuredGroqPrompt(recipes, preferences, selectedMealTypes, dayOffset = 0) {
-  // Preparar información de recetas categorizada usando tags específicos
+  // Categorize recipes by tags
   const categorizedRecipes = categorizeRecipesByTags(recipes);
   
-  // Generar fechas para este lote
+  // Generate date list
   const today = new Date();
   const dates = [];
   for (let i = 0; i < preferences.duration; i++) {
@@ -222,13 +184,12 @@ function buildStructuredGroqPrompt(recipes, preferences, selectedMealTypes, dayO
     dates.push(date.toISOString().split('T')[0]);
   }
   
-  // Determinar estructura obligatoria basada en tags
   const mealStructure = selectedMealTypes.map(type => {
     const rules = {
       breakfast: "SOLO recetas con tag 'desayuno'",
-      lunch: "O 1 receta con tag 'plato único' O 2 recetas: una con 'primer plato' y otra con 'segundo plato'",
-      dinner: "O 1 receta con tag 'plato único' O 2 recetas: una con 'primer plato' y otra con 'segundo plato'",
-      snack: "SOLO recetas con tag 'merienda' o 'rápido'"
+      lunch: "Solo recetas con tag 'comida' y tiene que ser o 1 receta con tag 'plato único' O 2 recetas: una con 'primer plato' y otra con 'segundo plato'",
+      dinner: "Solo recetas con tag 'cena' y tiene que ser o 1 receta con tag 'plato único' O 2 recetas: una con 'primer plato' y otra con 'segundo plato'",
+      snack: "SOLO recetas con tag 'merienda'"
     };
     return `• ${type}: ${rules[type] || "1 receta apropiada"}`;
   }).join('\n');
@@ -238,8 +199,8 @@ function buildStructuredGroqPrompt(recipes, preferences, selectedMealTypes, dayO
     breakfast: "Desayuno",
     lunch: "Comida/Almuerzo", 
     dinner: "Cena",
-    snack: "Merienda",
-    afternoonSnack: "Tentempié"
+    snack: "Tentempié",
+    afternoonSnack: "Merienda"
   };
   
   const selectedMealsText = selectedMealTypes.map(type => 
@@ -262,12 +223,13 @@ ${mealStructure}
    - OPCIÓN A: 1 receta con tag "plato único" (solo 1 receta)
    - OPCIÓN B: 2 recetas - UNA con tag "primer plato" y OTRA con tag "segundo plato"
 
-2. COMBINACIONES PROHIBIDAS (NUNCA usar):
-   - 1 solo primer plato
-   - 1 solo segundo plato  
-   - 2 primeros platos
-   - 2 segundos platos
-   - 2 platos únicos
+2. COMBINACIONES PROHIBIDAS EN COMIDAS Y CENAS(NUNCA usar):
+   - 1 sola receta con tag 'primer plato'
+   - 1 sola receta con tag 'segundo plato'  
+   - 2 recetas con tag 'primer plato'
+   - 2 recetas con tag 'segundo plato'
+   - 2 recetas con tag 'plato único'
+   - Mezclar receta con tag 'plato único' con recetas con tags 'primer plato' o 'segundo plato'
 
 3. USO CORRECTO DE TAGS (OBLIGATORIO):
    - Tag "especial" → SOLO fines de semana
@@ -275,33 +237,32 @@ ${mealStructure}
    - Tag "comida" → SOLO para lunch
    - Tag "cena" → SOLO para dinner
    - Tag "merienda" → SOLO para snack/afternoonSnack
-   - Tag "plato único" → Para lunch o dinner, como única receta
+   - Tag "plato único" → Para lunch o dinner, como ÚNICA receta
    - Tag "primer plato" → Para lunch o dinner, COMBINADO con un segundo plato
    - Tag "segundo plato" → Para lunch o dinner, COMBINADO con un primer plato
 
 4. VARIEDAD NUTRICIONAL:
-   - Varía ingredientes: no repetir la misma proteína o verdura 2 días seguidos, tampoco el mismo día (por ejemplo no patatas dos veces en un día)
+   - Varía ingredientes: no repetir la misma proteína o verdura 2 días seguidos, tampoco el mismo día (por ejemplo no recetas con patatas dos veces en un día)
    - Balance: incluye proteínas, verduras, carbohidratos
-   - Días laborables: prioriza tags "rápido", "fácil", "económico"
-   - Fines de semana: puedes usar tags "especial"
+   - Fines de semana: puedes usar tags "especial" (solo puedes usarlas los fines de semana, pero si no hay disponibles, usa otras)
 
 ## RECETAS DISPONIBLES (${recipes.length}) CLASIFICADAS POR TAGS:
 
-### 1. PARA DESAYUNO (breakfast) - tags: desayuno, rápido, fácil:
-    ${categorizedRecipes.breakfast.map(r => formatRecipeForPrompt(r)).join('\n') || 'NINGUNA DISPONIBLE'}
+### 1. PARA DESAYUNO (breakfast) - tags: desayuno:
+${categorizedRecipes.breakfast.map(r => formatRecipeForPrompt(r)).join('\n') || 'NINGUNA DISPONIBLE'}
 
-### 2. PARA COMIDA (lunch)  - tags: comida, plato único, primer plato, segundo plato:
+### 2. PARA COMIDA (lunch)  - tags: comida:
 ${categorizedRecipes.lunch.map(r => formatRecipeForPrompt(r)).join('\n') || 'NINGUNA DISPONIBLE'}
 
-### 3. PARA CENA (dinner) - tags: cena, plato único, primer plato, segundo plato:
+### 3. PARA CENA (dinner) - tags: cena:
 ${categorizedRecipes.dinner.map(r => formatRecipeForPrompt(r)).join('\n') || 'NINGUNA DISPONIBLE'}
 
-### 4. PARA MERIENDA (snack) - tags: merienda, rápido:
+### 4. PARA MERIENDA (snack) - tags: merienda:
 ${categorizedRecipes.snacks.map(r => formatRecipeForPrompt(r)).join('\n') || 'NINGUNA DISPONIBLE'}
 
 ## EJEMPLOS CORRECTOS DE ESTRUCTURA:
 
-### Ejemplo 1: Lunch con 2 platos (primer plato + segundo plato)
+### Ejemplo 1: Comida con 2 platos (primer plato + segundo plato)
 "2026-01-29": {
   "lunch": [
     {"recipeId": "ID1", "notes": "Primer plato: Ensalada de tomate y queso"},
@@ -309,14 +270,14 @@ ${categorizedRecipes.snacks.map(r => formatRecipeForPrompt(r)).join('\n') || 'NI
   ]
 }
 
-### Ejemplo 2: Lunch con plato único
+### Ejemplo 2: Comida con plato único
 "2026-01-30": {
   "lunch": [
     {"recipeId": "ID3", "notes": "Plato único: Paella de verduras"}
   ]
 }
 
-### Ejemplo 3: Dinner con 2 platos
+### Ejemplo 3: Cena con 2 platos
 "2026-01-29": {
   "dinner": [
     {"recipeId": "ID4", "notes": "Primer plato: Crema de calabacín"},

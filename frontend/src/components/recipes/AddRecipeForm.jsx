@@ -1096,7 +1096,7 @@ const AddRecipeForm = () => {
                       <li>Al menos un <strong>momento del día</strong> (desayuno, almuerzo, merienda o cena)</li>
                     )}
                     {!formData.tags.some(tag => ['plato único', 'primer plato', 'segundo plato', 'entrante', 'postre'].includes(tag)) && (
-                      <li>Al menos un <strong>tipo de plato</strong></li>
+                      <li>Al menos un <strong>Tipo de plato (comidas y cenas)</strong></li>
                     )}
                   </ul>
                 </p>

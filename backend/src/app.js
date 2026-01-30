@@ -6,6 +6,10 @@ import cors from 'cors';
 import morgan from 'morgan';
 import routes from './routes/index.js';
 
+import { ApiError } from './messages/ApiError.js';
+import { MESSAGE_CODES } from './messages/messageCodes.js';
+import { errorMiddleware } from './middlewares/errorMiddleware.js';
+
 const app = express();
 
 const allowedHostnames = (process.env.CORS_HOSTNAMES || '')
@@ -28,7 +32,13 @@ app.use(cors({
     } catch (e) {
     }
 
-    callback(new Error(`CORS bloqueado: ${origin}`));
+    callback(
+      new ApiError(
+        403,
+        MESSAGE_CODES.AUTH_UNAUTHORIZED,
+        { origin }
+      )
+    );
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -44,4 +54,5 @@ app.get('/health', (_, res) => {
   res.json({ status: 'ok' });
 });
 
+app.use(errorMiddleware);
 export default app;

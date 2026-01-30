@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -12,34 +13,32 @@ const api = axios.create({
 // Interceptor para agregar token automáticamente
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Obtener token desde store o localStorage
+    const token = useAuthStore.getState().token || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor para manejar errores 401
+// Interceptor para manejar errores
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Si es 401, cerrar sesión
     if (error.response?.status === 401) {
-      // Solo limpiar si no estamos en la página de login
-      if (!window.location.pathname.includes('/login')) {
-        localStorage.removeItem('token');
-        delete api.defaults.headers.common['Authorization'];
-        
-        // Redirigir a login si no está ya ahí
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
+      useAuthStore.getState().logout();
     }
-    return Promise.reject(error);
+
+    // Normalizar mensaje de error para los stores
+    const message =
+      error.response?.data?.error || // backend manda { error: '...' }
+      error.response?.data?.data?.originalMessage || // tu antiguo throwApiError
+      'Error desconocido';
+
+    return Promise.reject({ ...error, message });
   }
 );
 

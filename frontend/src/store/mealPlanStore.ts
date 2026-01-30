@@ -28,11 +28,11 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     try {
       const response = await mealPlanApi.getAll({ start, end });
       set({ 
-        mealPlans: response.mealPlans || response.data || response,
+        mealPlans: response.data.mealPlans || response.data || response,
         loading: false 
       });
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al cargar planes de comida';
+      const message = error.response?.data?.data?.originalMessage || 'Error al cargar planes de comida';
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -42,7 +42,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await mealPlanApi.upsert(data);
-      const newMealPlan = response.mealPlan;
+      const newMealPlan = response.data.data.mealPlan || response.data;
       set((state) => ({
         mealPlans: state.mealPlans.map(plan =>
           plan.date === newMealPlan.date ? newMealPlan : plan
@@ -52,7 +52,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       toast.success('Plan de comida guardado exitosamente');
       return newMealPlan;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al guardar plan de comida';
+      const message = error.response?.data?.data?.originalMessage || 'Error al guardar plan de comida';
       set({ error: message, loading: false });
       toast.error(message);
       throw error;
@@ -70,7 +70,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       toast.success('Plan de comida eliminado exitosamente');
       return true;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al eliminar plan de comida';
+      const message = error.response?.data?.data?.originalMessage || 'Error al eliminar plan de comida';
       set({ error: message, loading: false });
       toast.error(message);
       return false;

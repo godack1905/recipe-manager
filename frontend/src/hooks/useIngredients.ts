@@ -17,7 +17,7 @@ export const useIngredients = () => {
       console.log('🔄 Fetching ALL ingredients from API...');
       const response = await ingredientsApi.getAll('es');
       
-      const ingredientsList = response.ingredients || response.data || response;
+      const ingredientsList = response.data.ingredients || response.data || response;
       console.log(`✅ Loaded ${ingredientsList.length} ingredients to cache`);
       
       // Llenar el cache
@@ -45,8 +45,8 @@ export const useIngredients = () => {
     try {
       const response = await ingredientsApi.getById(id);
       
-      if (response.success && response.ingredient) {
-        const ingredient = response.ingredient;
+      if (response.success && response.data.ingredient) {
+        const ingredient = response.data.ingredient;
         // Guardar en cache
         ingredientCache.set(id, ingredient);
         return ingredient;

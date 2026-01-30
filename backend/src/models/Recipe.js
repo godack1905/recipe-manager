@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { MESSAGE_CODES } from "../messages/messageCodes.js";
+
 const IngredientSchema = new mongoose.Schema(
   {
     ingredient: {
@@ -45,10 +47,10 @@ const RecipeSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "El título es requerido"],
+      required: [true, MESSAGE_CODES.RECIPE_TITLE_REQUIRED],
       trim: true,
-      minlength: [3, "El título debe tener al menos 3 caracteres"],
-      maxlength: [100, "El título no puede exceder 100 caracteres"]
+      minlength: [3, MESSAGE_CODES.RECIPE_TITLE_TOO_SHORT],
+      maxlength: [100, MESSAGE_CODES.RECIPE_TITLE_TOO_LONG]
     },
     imageUrl: {
       type: String,
@@ -57,15 +59,15 @@ const RecipeSchema = new mongoose.Schema(
     description: {
       type: String,
       trim: true,
-      maxlength: [500, "La descripción no puede exceder 500 caracteres"]
+      maxlength: [500, MESSAGE_CODES.RECIPE_DESCRIPTION_TOO_LONG]
     },
     servings: {
       type: Number,
       default: 4,
-      min: [1, "Las porciones deben ser al menos 1"]
+      min: [1, MESSAGE_CODES.MINIMUM_SERVINGS],
     },
     prepTime: {
-      type: Number, // minutos
+      type: Number, // in minutes
       min: 0
     },
     ingredients: [IngredientSchema],
@@ -82,8 +84,8 @@ const RecipeSchema = new mongoose.Schema(
     }],
     difficulty: {
       type: String,
-      enum: ["Fácil", "Media", "Difícil"],
-      default: "Media"
+      enum: [MESSAGE_CODES.EASY, MESSAGE_CODES.MEDIUM, MESSAGE_CODES.HARD],
+      default: MESSAGE_CODES.MEDIUM
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -102,12 +104,12 @@ const RecipeSchema = new mongoose.Schema(
   }
 );
 
-// Virtual para id
+// Virtual for id
 RecipeSchema.virtual("id").get(function() {
   return this._id.toHexString();
 });
 
-// Asegurar que el virtual se incluya en JSON
+// Make sure virtual fields are serialized
 RecipeSchema.set('toJSON', { virtuals: true });
 RecipeSchema.set('toObject', { virtuals: true });
 

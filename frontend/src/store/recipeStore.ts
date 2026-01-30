@@ -36,11 +36,11 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       const response = await recipesApi.getAll({ search });
       set({ 
-        recipes: response.recipes || response.data || response,
+        recipes: response.data.recipes,
         loading: false 
       });
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al cargar recetas';
+      const message = error.response?.data?.data?.originalMessage || 'Error al cargar recetas';
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -49,11 +49,11 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   fetchRecipeById: async (id: string) => {
     set({ loading: true, error: null });
     try {
-      const recipe = await recipesApi.getById(id);
-      set({ currentRecipe: recipe, loading: false });
-      return recipe; // Devuelve la receta
+      const response  = await recipesApi.getById(id);
+      set({ currentRecipe: response.data, loading: false });
+      return response.data;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al cargar receta';
+      const message = error.response?.data?.data?.originalMessage || 'Error al cargar receta';
       set({ error: message, loading: false });
       toast.error(message);
       return null; // Devuelve null en caso de error
@@ -64,7 +64,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     set({ loading: true });
     try {
       const response = await recipesApi.getFavorites();
-      const favoritesData = response.favorites || response.data || response;
+      const favoritesData = response.data.favorites || [];
       const favoriteIds = Array.isArray(favoritesData) 
         ? favoritesData.map((fav: any) => fav.id || fav)
         : [];
@@ -73,7 +73,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         loading: false 
       });
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al cargar favoritos';
+      const message = error.response?.data?.data?.originalMessage || 'Error al cargar favoritos';
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -90,7 +90,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       toast.success('Receta creada exitosamente');
       return recipe;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al crear receta';
+      const message = error.response?.data?.data?.originalMessage || 'Error al crear receta';
       set({ error: message, loading: false });
       toast.error(message);
       throw error;
@@ -109,7 +109,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       toast.success('Receta actualizada exitosamente');
       return recipe;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al actualizar receta';
+      const message = error.response?.data?.data?.originalMessage || 'Error al actualizar receta';
       set({ error: message, loading: false });
       toast.error(message);
       throw error;
@@ -128,7 +128,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       toast.success('Receta eliminada exitosamente');
       return true; // Devuelve true si fue exitoso
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al eliminar receta';
+      const message = error.response?.data?.data?.originalMessage || 'Error al eliminar receta';
       set({ error: message, loading: false });
       toast.error(message);
       return false; // Devuelve false si hubo error
@@ -138,7 +138,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   toggleFavorite: async (id: string) => {
     try {
       const response = await recipesApi.toggleFavorite(id);
-      const newFavorites = response.favorites || get().favorites;
+      const newFavorites = response.data.favorites || get().favorites;
       const favoriteIds = Array.isArray(newFavorites) 
         ? newFavorites.map((fav: any) => fav.id || fav)
         : [];
@@ -146,7 +146,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       set({ favorites: favoriteIds });
       toast.success(response.message || 'Favoritos actualizados');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Error al actualizar favoritos';
+      const message = error.response?.data?.data?.originalMessage || 'Error al actualizar favoritos';
       toast.error(message);
     }
   },

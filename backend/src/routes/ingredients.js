@@ -3,15 +3,17 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
+
 const router = express.Router();
 
-// Para __dirname en ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ingredientsPath = path.join(__dirname, "../data/ingredients.json");
 
-// Obtener todos los ingredientes o buscar
+// Get all ingredients with optional filtering
 router.get("/", (req, res) => {
   try {
     const { query, lang = "es", limit = 20 } = req.query;
@@ -26,46 +28,37 @@ router.get("/", (req, res) => {
       );
     }
 
-    // Limitar resultados
+    // Limit results
     results = results.slice(0, parseInt(limit));
 
-    res.json({
-      success: true,
-      count: results.length,
-      ingredients: results
-    });
+    return sendSuccess(res, MESSAGE_CODES.INGREDIENTS_FETCHED, { count: results.length, ingredients: results }, 200);
+    
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Error al obtener ingredientes" 
-    });
-  }
+    if (err instanceof ApiError)
+      return next(err);
+    
+    console.error("Error in getIngredients:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
+}
 });
 
-// Obtener ingrediente por ID
+// Get ingredient by ID
 router.get("/:id", (req, res) => {
   try {
     const data = JSON.parse(fs.readFileSync(ingredientsPath, "utf-8"));
     const ingredient = data.find(i => i.id === req.params.id);
 
     if (!ingredient) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Ingrediente no encontrado" 
-      });
+      throwApiError(404, MESSAGE_CODES.INGREDIENT_NOT_FOUND);
     }
 
-    res.json({
-      success: true,
-      ingredient
-    });
+    sendSuccess(res, MESSAGE_CODES.INGREDIENT_FETCHED, { ingredient }, 200);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Error al obtener el ingrediente" 
-    });
+    if (err instanceof ApiError)
+      return next(err);
+    
+    console.error("Error in getIngredientsById:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 });
 
@@ -77,17 +70,13 @@ router.get("/category/:category", (req, res) => {
       i.categoria.toLowerCase() === req.params.category.toLowerCase()
     );
 
-    res.json({
-      success: true,
-      count: ingredients.length,
-      ingredients
-    });
+    sendSuccess(res, MESSAGE_CODES.INGREDIENTS_FETCHED, { count: ingredients.length, ingredients }, 200);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Error al obtener ingredientes por categoría" 
-    });
+    if (err instanceof ApiError)
+      return next(err);
+    
+    console.error("Error in getIngredientsByCategory:", err);
+    throwApiError(500, MESSAGE_CODES.INTERNAL_ERROR, { originalMessage: err.message });
   }
 });
 

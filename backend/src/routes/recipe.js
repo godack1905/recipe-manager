@@ -13,7 +13,6 @@ import { auth } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación
 router.use(auth);
 
 router.get("/", getRecipes);

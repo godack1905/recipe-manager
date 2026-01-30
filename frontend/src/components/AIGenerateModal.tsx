@@ -183,9 +183,9 @@ const AIGenerateModal: React.FC<AIGenerateModalProps> = ({ onClose, onGenerate }
       }
 
       // Convertir el formato del backend a nuestro formato
-      const convertedPlan = convertAIPlanToInternalFormat(data.plan, finalRecipes);
+      const convertedPlan = convertAIPlanToInternalFormat(data.data.mealPlan, finalRecipes);
       setPreviewPlan(convertedPlan);
-      setGenerationSource(data.source || 'ai');
+      setGenerationSource(data.data.source || 'ai');
       
       if (data.warning) {
         setSuccess(`Plan generado (${data.warning})`);

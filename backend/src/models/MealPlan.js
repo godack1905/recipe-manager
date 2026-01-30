@@ -1,22 +1,24 @@
 import mongoose from "mongoose";
 
+import { MESSAGE_CODES } from '../messages/messageCodes.js';
+
 const MealSchema = new mongoose.Schema(
   {
     recipe: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Recipe",
-      required: [true, "La receta es requerida"]
+      required: [true, MESSAGE_CODES.RECIPE_NEEDED]
     },
     people: {
       type: Number,
       default: 4,
-      min: [1, "Debe haber al menos 1 persona"],
-      max: [20, "No puede haber más de 20 personas"]
+      min: [1, MESSAGE_CODES.MINIMUM_PEOPLE],
+      max: [20, MESSAGE_CODES.MAX_PEOPLE]
     },
     notes: {
       type: String,
       trim: true,
-      maxlength: [200, "Las notas no pueden exceder 200 caracteres"],
+      maxlength: [200, MESSAGE_CODES.NOTES_TOO_LONG],
       default: ""
     }
   },
@@ -32,15 +34,15 @@ const MealPlanSchema = new mongoose.Schema(
     },
     date: {
       type: Date,
-      required: [true, "La fecha es requerida"],
+      required: [true, MESSAGE_CODES.DATE_REQUIRED],
       validate: {
         validator: function(v) {
-          // Permitir fechas hasta 1 año en el futuro
+          // Accept only dates from today to one year ahead
           const maxDate = new Date();
           maxDate.setFullYear(maxDate.getFullYear() + 1);
           return v <= maxDate;
         },
-        message: "La fecha no puede ser más de un año en el futuro"
+        message: MESSAGE_CODES.INVALID_DATE
       }
     },
     meals: {
@@ -58,24 +60,24 @@ const MealPlanSchema = new mongoose.Schema(
   }
 );
 
-// Índice único por usuario y fecha
+// Unique index to prevent duplicate meal plans for the same user and date
 MealPlanSchema.index({ user: 1, date: 1 }, { unique: true });
 
-// Índice para búsqueda por rango de fechas
+// Single index to optimize queries by user and date
 MealPlanSchema.index({ user: 1, date: 1 });
 
-// Virtual para id
+// Virtual for id
 MealPlanSchema.virtual("id").get(function() {
   return this._id.toHexString();
 });
 
-// Virtual para día de la semana
+// Virtual for day of the week
 MealPlanSchema.virtual("dayOfWeek").get(function() {
-  const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const days = [MESSAGE_CODES.SUNDAY, MESSAGE_CODES.MONDAY, MESSAGE_CODES.TUESDAY, MESSAGE_CODES.WEDNESDAY, MESSAGE_CODES.THURSDAY, MESSAGE_CODES.FRIDAY, MESSAGE_CODES.SATURDAY];
   return days[this.date.getDay()];
 });
 
-// Virtual para formato de fecha legible
+// Virtual for formatted date
 MealPlanSchema.virtual("formattedDate").get(function() {
   return this.date.toISOString().split('T')[0]; // YYYY-MM-DD
 });

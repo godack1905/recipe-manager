@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi } from '../lib/authApi';
-import api from '../lib/api'; // Importa tu instancia de axios
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -15,7 +15,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   loading: boolean;
-  initialLoading: boolean; // Para carga inicial
+  initialLoading: boolean;
   error: string | null;
   
   // Actions
@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       loading: false,
-      initialLoading: true, // Empieza en true
+      initialLoading: true,
       error: null,
 
       initializeAuth: async () => {
@@ -45,12 +45,8 @@ export const useAuthStore = create<AuthState>()(
         }
         
         try {
-          // Configurar el token en axios
+          // Configure the api with the token
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          
-          // Opcional: Hacer una petición para verificar el token
-          // const response = await api.get('/auth/verify');
-          // Si es exitoso, establecer el usuario
           
           set({ 
             token,
@@ -58,7 +54,7 @@ export const useAuthStore = create<AuthState>()(
             initialLoading: false 
           });
         } catch (error) {
-          // Token inválido, limpiar
+          // If token is invalid, remove it
           localStorage.removeItem('token');
           delete api.defaults.headers.common['Authorization'];
           set({ 
@@ -73,21 +69,24 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const response = await authApi.login({ email, password });
+
+          const token = response.data.token;
+          const user = response.data.user;
           
-          // Guardar token en localStorage y configurar axios
-          localStorage.setItem('token', response.token);
-          api.defaults.headers.common['Authorization'] = `Bearer ${response.token}`;
+          // Save token to localStorage
+          localStorage.setItem('token', token);
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
           set({
-            user: response.user,
-            token: response.token,
+            user,
+            token,
             isAuthenticated: true,
             loading: false,
             initialLoading: false,
           });
           toast.success('¡Inicio de sesión exitoso!');
         } catch (error: any) {
-          const message = error.response?.data?.error || 'Error al iniciar sesión';
+          const message = error.response?.data?.data?.originalMessage || 'Error al iniciar sesión';
           set({ error: message, loading: false, initialLoading: false });
           toast.error(message);
         }
@@ -100,7 +99,7 @@ export const useAuthStore = create<AuthState>()(
           set({ loading: false });
           toast.success('¡Registro exitoso! Ahora puedes iniciar sesión.');
         } catch (error: any) {
-          const message = error.response?.data?.error || 'Error al registrar';
+          const message = error.response?.data?.data?.originalMessage || 'Error al registrar';
           set({ error: message, loading: false });
           toast.error(message);
         }
