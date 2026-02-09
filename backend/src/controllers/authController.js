@@ -8,7 +8,7 @@ import { ApiError } from '../messages/ApiError.js';
 
 
 
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   const { username, email, password } = req.body;
 
   try {
@@ -44,7 +44,7 @@ export const register = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   // Basic validation

@@ -5,7 +5,7 @@ import { MESSAGE_CODES } from '../messages/messageCodes.js';
 import { sendSuccess, throwApiError } from '../messages/responseHelper.js';
 import { ApiError } from '../messages/ApiError.js';
 
-export const getMealPlans = async (req, res) => {
+export const getMealPlans = async (req, res, next) => {
   try {
     const { start, end } = req.query;
 
@@ -50,7 +50,7 @@ export const getMealPlans = async (req, res) => {
   }
 };
 
-export const upsertMealPlan = async (req, res) => {
+export const upsertMealPlan = async (req, res, next) => {
   try {
     const { date, meals } = req.body;
 
@@ -206,7 +206,7 @@ export const upsertMealPlan = async (req, res) => {
   }
 };
 
-export const deleteMealPlan = async (req, res) => {
+export const deleteMealPlan = async (req, res, next) => {
   try {
     const { date } = req.params;
     
@@ -239,7 +239,7 @@ export const deleteMealPlan = async (req, res) => {
   }
 };
 
-export const updateMeal = async (req, res) => {
+export const updateMeal = async (req, res, next) => {
   try {
     const { date, mealType } = req.params;
     const { recipe, people, notes } = req.body;

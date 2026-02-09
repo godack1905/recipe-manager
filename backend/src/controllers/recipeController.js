@@ -34,7 +34,7 @@ const processIngredients = (ingredients) => {
   });
 };
 
-export const createRecipe = async (req, res) => {
+export const createRecipe = async (req, res, next) => {
   try {
     const processedIngredients = processIngredients(req.body.ingredients);
 
@@ -54,7 +54,7 @@ export const createRecipe = async (req, res) => {
   }
 };
 
-export const getRecipes = async (req, res) => {
+export const getRecipes = async (req, res, next) => {
   try {
     const { search } = req.query;
     
@@ -86,7 +86,7 @@ export const getRecipes = async (req, res) => {
   }
 };
 
-export const getRecipeById = async (req, res) => {
+export const getRecipeById = async (req, res, next) => {
   try {
     const recipe = await Recipe.findById(req.params.id)
       .populate("createdBy", "username email");
@@ -160,7 +160,7 @@ export const updateRecipe = async (req, res, next) => {
   }
 };
 
-export const deleteRecipe = async (req, res) => {
+export const deleteRecipe = async (req, res, next) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
     if (!recipe) {
@@ -182,7 +182,7 @@ export const deleteRecipe = async (req, res) => {
   }
 };
 
-export const getUserFavorites = async (req, res) => {
+export const getUserFavorites = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).populate('favorites');
     
@@ -196,7 +196,7 @@ export const getUserFavorites = async (req, res) => {
   }
 };
 
-export const toggleFavorite = async (req, res) => {
+export const toggleFavorite = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     const recipeId = req.params.id;
@@ -229,7 +229,7 @@ export const toggleFavorite = async (req, res) => {
 };
 
 // Function to generate shopping list from meal plans (future implementation)
-export const generateShoppingList = async (req, res) => {
+export const generateShoppingList = async (req, res, next) => {
   try {
     const { startDate, endDate, mealPlanIds } = req.body;
     

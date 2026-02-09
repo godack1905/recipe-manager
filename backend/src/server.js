@@ -6,6 +6,7 @@ import app from "./app.js";
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
+const IP = process.env.IP;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/recipe_app";
 
 // Configure mongoose
@@ -35,7 +36,7 @@ const startServer = async () => {
   const server = app.listen(PORT, () => {
     console.log(`Server running in port ${PORT}`);
     console.log(`Enviroment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`URL: http://192.168.1.52:${PORT}`);
+    console.log(`URL: http://${IP}:${PORT}`);
   });
 
   // Handle server errors
