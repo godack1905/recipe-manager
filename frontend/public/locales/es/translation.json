@@ -7,7 +7,7 @@
     "recipes": "Recetas",
     "easy": "Fácil",
     "medium": "Medio",
-    "difficult": "Difícil",
+    "hard": "Difícil",
     "auth": {
         "login": "Iniciar sesión",
         "register": "Registrarse",
