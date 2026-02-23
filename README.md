@@ -129,6 +129,11 @@ recipe-manager/
 │   ├── tailwind.config.js
 │   └── package.json
 │
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                   # Continuous Integration pipeline
+│       └── cd.yml                   # Continuous Deployment pipeline
+│
 ├── docker-compose.yml               # Docker Compose configuration
 ├── .env.example                     # Environment variables template
 └── README.md
@@ -218,6 +223,70 @@ npm test
 
 ---
 
+## 🔄 CI/CD Pipeline
+
+AutoEats uses **GitHub Actions** for continuous integration and continuous deployment, ensuring code quality and automated deployments.
+
+### Continuous Integration (CI)
+
+The CI pipeline runs on every push to `main` and `develop` branches, and on all pull requests.
+
+**Workflow**: `.github/workflows/ci.yml`
+
+#### Backend CI
+- ✅ Node.js 18 setup with dependency caching
+- ✅ Dependency installation (`npm ci`)
+- ✅ Code linting with ESLint
+- ✅ Unit and integration test execution
+- ✅ Test coverage validation
+
+#### Frontend CI
+- ✅ Node.js 18 setup with dependency caching
+- ✅ Dependency installation (`npm ci`)
+- ✅ TypeScript linting and type checking
+- ✅ Production build verification
+- ✅ Build output validation
+
+### Continuous Deployment (CD)
+
+The CD pipeline automatically builds and publishes Docker images to **GitHub Container Registry (GHCR)** on every push to the `main` branch.
+
+**Workflow**: `.github/workflows/cd.yml`
+
+**Features**:
+- 🐳 Automated Docker image building for backend and frontend
+- 📦 Images pushed to GHCR with multiple tags:
+  - `latest` - Latest stable version
+  - `<commit-sha>` - Specific commit version for rollback capability
+- 🔐 Secure credential management via GitHub Secrets
+- 🚀 Multi-architecture image support
+
+**Image Locations**:
+- Backend: `ghcr.io/<owner>/autoeats/backend:latest`
+- Frontend: `ghcr.io/<owner>/autoeats/frontend:latest`
+
+### Required GitHub Secrets
+
+For the CD pipeline to work, configure the following secrets in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `GHCR_USERNAME` | GitHub username for GHCR authentication |
+| `GHCR_TOKEN` | GitHub Personal Access Token with `write:packages` scope |
+
+**How to set up**:
+1. Go to GitHub repository → Settings → Secrets and Variables → Actions
+2. Add new repository secrets with the values above
+
+### GitHub Actions Status
+
+You can view the status of all workflows by:
+1. Navigate to your repository on GitHub
+2. Click **Actions** tab
+3. View detailed logs and execution history
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! Please follow these steps:
@@ -227,6 +296,8 @@ We welcome contributions! Please follow these steps:
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+**Note**: All pull requests will automatically run through the CI pipeline to ensure code quality.
 
 ---
 
