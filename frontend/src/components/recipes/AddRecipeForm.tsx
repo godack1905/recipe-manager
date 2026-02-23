@@ -17,13 +17,10 @@ import {
   XCircle
 } from 'lucide-react';
 import { useRecipeStore } from '../../store/recipeStore';
-import { useAuthStore } from '../../store/authStore';
-import { ingredientsApi, type IngredientData } from '../../lib/ingredientsApi';
+import type { IngredientData } from '../../lib/ingredientsApi';
 import type { CreateRecipeData } from '../../lib/recipesApi';
-import { 
-  MEAL_TYPE_TAGS, 
-  TAG_CATEGORIES
-} from '../../constants/mealTags';
+import { TAG_CATEGORIES } from '../../constants/mealTags';
+import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 import { useTranslation } from "react-i18next";
@@ -60,9 +57,10 @@ interface FormIngredient {
 // Normalize API ingredient shape to `IngredientWithMeasures`
 const normalizeIngredient = (ing: IngredientData): IngredientWithMeasures => ({
   ...ing,
-  allowedMeasures: (ing.allowedMeasures || []).map((m: any) => 
-    typeof m === 'string' ? { name: m } as MeasureOption : (m as MeasureOption)
-  )
+  allowedMeasures: (ing.allowedMeasures || []).map((m: unknown) => {
+    if (typeof m === 'string') return { name: m } as MeasureOption;
+    return (m as MeasureOption);
+  })
 });
 
 const AddRecipeForm = () => {
@@ -71,7 +69,6 @@ const AddRecipeForm = () => {
   
   const ingredientInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const tagInputRef = useRef<HTMLInputElement>(null);
   
   const { t, i18n } = useTranslation();
   
@@ -96,13 +93,10 @@ const AddRecipeForm = () => {
     unit: '',
     displayQuantity: ''
   });
-  const [currentTag, setCurrentTag] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-  const [filteredTags, setFilteredTags] = useState<string[]>(() => [...MEAL_TYPE_TAGS]);
 
   // Get current language (es or en)
   const currentLang = i18n.language?.split('-')[0] || 'en';
@@ -151,34 +145,10 @@ const AddRecipeForm = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close tag suggestions on outside click
+  // Tag suggestion input removed — no-op placeholder for tag state initialization
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tagInputRef.current && 
-        !tagInputRef.current.contains(event.target as Node)
-      ) {
-        setShowTagSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // initialize filtered tags if needed in future
   }, []);
-
-  // Filter tags based on input
-  useEffect(() => {
-    if (currentTag.trim()) {
-      const filtered = MEAL_TYPE_TAGS.filter(tag => 
-        tag.toLowerCase().includes(currentTag.toLowerCase())
-      );
-      setFilteredTags(filtered);
-      setShowTagSuggestions(true);
-    } else {
-      setFilteredTags(MEAL_TYPE_TAGS.slice(0, 10));
-      setShowTagSuggestions(false);
-    }
-  }, [currentTag]);
 
   // Handle search input change - CORREGIDO
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -527,9 +497,10 @@ const AddRecipeForm = () => {
       toast.success(t("recipe.creationSuccess"));
       navigate('/recipes');
 
-    } catch (error: any) {
-      console.error('Error creating recipe:', error);
-      const errorMessage = error.response?.data?.message || t("recipe.creationError");
+    } catch (err) {
+      console.error('Error creating recipe:', err);
+      const axiosErr = err as AxiosError | undefined;
+      const errorMessage = axiosErr?.response?.data?.message || t("recipe.creationError");
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -726,7 +697,7 @@ const AddRecipeForm = () => {
                               const regex = new RegExp(`(${searchTerm})`, 'gi');
                               parts = displayName.split(regex);
                             }
-                          } catch (error) {
+                          } catch {
                             parts = [displayName];
                           }
                           

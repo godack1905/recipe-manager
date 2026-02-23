@@ -164,7 +164,7 @@ export const deleteRecipe = async (req, res, next) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
     if (!recipe) {
-      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);S
+      throwApiError(404, MESSAGE_CODES.RECIPE_NOT_FOUND);
     }
 
     if (recipe.createdBy.toString() !== req.user.id) {
@@ -245,7 +245,6 @@ export const toggleFavorite = async (req, res, next) => {
 // Function to generate shopping list from meal plans (future implementation)
 export const generateShoppingList = async (req, res, next) => {
   try {
-    const { startDate, endDate, mealPlanIds } = req.body;
     
     // Here would go the logic to generate the shopping list based on meal plans
     // 1. Obtain recipes from meal plans within date range or specified IDs

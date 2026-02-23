@@ -6,6 +6,7 @@ import {
   Calendar, Tag, ListOrdered, Package
 } from 'lucide-react';
 import { useRecipeStore } from '../store/recipeStore';
+import type { Ingredient } from '../lib/recipesApi';
 import { useAuthStore } from '../store/authStore';
 import { useIngredients } from '../hooks/useIngredients';
 
@@ -23,7 +24,7 @@ const RecipeDetail = () => {
     if (id) {
       fetchRecipeById(id);
     }
-  }, [id]);
+  }, [id, fetchRecipeById]);
 
   const handleDelete = async () => {
     if (window.confirm(t("recipe.deleteConfirm"))) {
@@ -212,7 +213,7 @@ const RecipeDetail = () => {
             </span>
           </h2>
           <ul className="space-y-3">
-              {currentRecipe.ingredients.map((ingredient: any, index: number) => {
+                  {currentRecipe.ingredients.map((ingredient: Ingredient, index: number) => {
                 const displayName = t(`ingredient.names.${ingredient.ingredient}`);
 
                 return (

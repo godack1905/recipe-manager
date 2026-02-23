@@ -4,6 +4,19 @@ import { authApi } from '../lib/authApi';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { t } from 'i18next';
+import type { AxiosError } from 'axios';
+
+// Helper to extract error message from AxiosError
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    const axiosErr = err as AxiosError;
+    const data = axiosErr?.response?.data as Record<string, unknown> | undefined;
+    const nestedData = data?.data as Record<string, unknown> | undefined;
+    const originalMessage = nestedData?.originalMessage as string | undefined;
+    return originalMessage || axiosErr.message || 'Unknown error';
+  }
+  return 'Unknown error';
+};
 
 interface User {
   id: string;
@@ -29,7 +42,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -54,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             initialLoading: false 
           });
-        } catch (error) {
+        } catch {
           // If token is invalid, remove it
           localStorage.removeItem('token');
           delete api.defaults.headers.common['Authorization'];
@@ -86,8 +99,8 @@ export const useAuthStore = create<AuthState>()(
             initialLoading: false,
           });
           toast.success(t("login.success"));
-        } catch (error: any) {
-          const message = error.response?.data?.data?.originalMessage ;
+        } catch (err) {
+          const message = getErrorMessage(err);
           set({ error: message, loading: false, initialLoading: false });
           toast.error(message);
         }
@@ -99,8 +112,8 @@ export const useAuthStore = create<AuthState>()(
           await authApi.register({ username, email, password });
           set({ loading: false });
           toast.success(t("register.success"));
-        } catch (error: any) {
-          const message = error.response?.data?.data?.originalMessage;
+        } catch (err) {
+          const message = getErrorMessage(err);
           set({ error: message, loading: false });
           toast.error(message);
         }

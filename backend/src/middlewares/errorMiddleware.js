@@ -1,7 +1,7 @@
 import { ApiError } from '../messages/ApiError.js';
 import { MESSAGE_CODES } from '../messages/messageCodes.js';
 
-export const errorMiddleware = (err, req, res, next) => {
+export const errorMiddleware = (err, req, res) => {
   console.error(err);
 
   if (err instanceof ApiError) {

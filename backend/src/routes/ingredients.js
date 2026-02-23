@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 const ingredientsPath = path.join(__dirname, "../data/ingredients.json");
 
 // Get all ingredients with optional filtering
-router.get("/", (req, res) => {
+router.get("/", (req, res, next) => {
   try {
     const { query } = req.query;
     const data = JSON.parse(fs.readFileSync(ingredientsPath, "utf-8"));
@@ -86,7 +86,7 @@ router.post('/search-by-keys', (req, res, next) => {
 });
 
 // Obtain ingredients by category
-router.get("/category/:category", (req, res) => {
+router.get("/category/:category", (req, res, next) => {
   try {
     const data = JSON.parse(fs.readFileSync(ingredientsPath, "utf-8"));
     const ingredients = data.filter(i => 

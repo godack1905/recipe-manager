@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Check, Calendar, Users, ChefHat, Clock, Zap, Filter, RefreshCw, Heart, Brain, AlertCircle } from 'lucide-react';
-import { addDays, format, isWeekend } from 'date-fns';
+import { X, Sparkles, Check, Calendar, Users, ChefHat, Clock, Zap, Filter, RefreshCw, Heart, AlertCircle } from 'lucide-react';
+import { format, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Recipe } from '../../lib/recipesApi';
 import { useRecipeStore } from '../../store/recipeStore';
@@ -69,7 +69,7 @@ const AIGenerateModal: React.FC<AIGenerateModalProps> = ({ onClose, onGenerate }
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [useAI, setUseAI] = useState(true);
+  const [useAI] = useState(true);
   const [preferences, setPreferences] = useState<GenerationPreferences>({
     avoidRepeats: true,
     balanceNutrition: true,
@@ -99,7 +99,7 @@ const AIGenerateModal: React.FC<AIGenerateModalProps> = ({ onClose, onGenerate }
 
   const generateWithAI = async () => {
     const selectedMealTypes = Object.entries(selectedMeals)
-      .filter(([_, selected]) => selected)
+      .filter(([selected]) => selected)
       .map(([key]) => key as MealType);
 
     if (selectedMealTypes.length === 0) {
@@ -153,20 +153,28 @@ const AIGenerateModal: React.FC<AIGenerateModalProps> = ({ onClose, onGenerate }
         setSuccess(t("mealPlan.generatedWithAI"));
       }
       
-    } catch (error: any) {
-      console.error('Error generando con IA:', error);
-      setError(`${t("mealPlan.aiError")}: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error generando con IA:', error);
+        setError(`${t("mealPlan.aiError")}: ${error.message}`);
+      } else {
+        console.error('Error generando con IA:', error);
+        setError(`${t("mealPlan.aiError")}: Unknown error`);
+      }
     } finally {
       setAiLoading(false);
     }
   };
 
-  const convertAIPlanToInternalFormat = (aiPlan: any, recipes: Recipe[]): MealPlan => {
+  const convertAIPlanToInternalFormat = (aiPlan: unknown, recipes: Recipe[]): MealPlan => {
     const plan: MealPlan = {};
-    
+
     const recipeMap = new Map(recipes.map(r => [r.id, r]));
-    
-    Object.entries(aiPlan).forEach(([date, dayMeals]: [string, any]) => {
+
+    const root = aiPlan as Record<string, unknown> | null;
+    if (!root) return plan;
+
+    Object.entries(root).forEach(([date, dayMeals]) => {
       plan[date] = {
         breakfast: [],
         snack: [],
@@ -174,25 +182,34 @@ const AIGenerateModal: React.FC<AIGenerateModalProps> = ({ onClose, onGenerate }
         afternoonSnack: [],
         dinner: [],
       };
-      
-      Object.entries(dayMeals).forEach(([mealType, items]: [string, any]) => {
-        if (Array.isArray(items)) {
-          items.forEach((item: any) => {
-            const recipe = recipeMap.get(item.recipeId);
-            if (recipe) {
-              plan[date][mealType as MealType]?.push({
-                recipe: recipe.id,
-                people,
-                notes: item.notes || t("mealPlan.plannedMeal"),
-                prepTime: recipe.prepTime,
-                difficulty: recipe.difficulty
-              });
-            }
-          });
-        }
-      });
+
+      const day = dayMeals as Record<string, unknown> | unknown[] | null;
+      if (!day) return;
+
+      // If day is an object mapping mealType -> items
+      if (typeof day === 'object' && !Array.isArray(day)) {
+        Object.entries(day as Record<string, unknown>).forEach(([mealType, items]) => {
+          if (Array.isArray(items)) {
+            (items as unknown[]).forEach(item => {
+              const itm = item as Record<string, unknown> | null;
+              if (!itm) return;
+              const recipeId = String(itm.recipeId ?? itm.recipe ?? '');
+              const recipe = recipeMap.get(recipeId);
+              if (recipe) {
+                plan[date][mealType as MealType]?.push({
+                  recipe: recipe.id,
+                  people,
+                  notes: String(itm.notes ?? t("mealPlan.plannedMeal")),
+                  prepTime: recipe.prepTime,
+                  difficulty: recipe.difficulty
+                });
+              }
+            });
+          }
+        });
+      }
     });
-    
+
     return plan;
   };
 

@@ -416,7 +416,7 @@ function validateCompletePlan(plan, recipes, selectedMealTypes, expectedDays) {
   
   let issues = 0;
   
-  sortedDates.forEach((dateStr, index) => {
+  sortedDates.forEach((dateStr) => {
     const dayPlan = plan[dateStr];
     finalPlan[dateStr] = {};
     

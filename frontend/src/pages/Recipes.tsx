@@ -16,10 +16,10 @@ const Recipes = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchRecipes().finally(() => {
-        setIsInitialLoad(false);
+        setTimeout(() => setIsInitialLoad(false), 0);
       });
     } else {
-      setIsInitialLoad(false);
+      setTimeout(() => setIsInitialLoad(false), 0);
     }
   }, [isAuthenticated, fetchRecipes]);
 

@@ -1,4 +1,4 @@
-// @ts-ignore
+// @ts-expect-error: i18next import type issue
 import { t } from 'i18next';
 import AddRecipeForm from '../components/recipes/AddRecipeForm';
 

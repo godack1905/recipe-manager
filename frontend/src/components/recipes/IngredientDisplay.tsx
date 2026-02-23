@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, AlertCircle, Loader } from 'lucide-react';
 import { useIngredients } from '../../hooks/useIngredients';
-import type { IngredientData } from '../../lib/ingredientsApi';
 
 import { t } from "i18next";
 
@@ -20,7 +19,6 @@ const IngredientDisplay: React.FC<IngredientDisplayProps> = ({
   index,
   showCategory = true,
 }) => {
-  const [ingredientInfo, setIngredientInfo] = useState<IngredientData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -31,12 +29,12 @@ const IngredientDisplay: React.FC<IngredientDisplayProps> = ({
       try {
         setLoading(true);
         const id = ingredient.ingredient;
-        
         const info = await fetchIngredientByName(id);
-        setIngredientInfo(info);
+        if (!info) setError(t("ingredient.notFound"));
         
       } catch (err) {
         console.error(`Error loading ingredient ${ingredient.ingredient}:`, err);
+        setError(t("ingredient.loadError"));
       } finally {
         setLoading(false);
       }

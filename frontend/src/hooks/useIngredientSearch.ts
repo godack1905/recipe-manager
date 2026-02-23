@@ -25,12 +25,18 @@ export const useIngredientSearch = () => {
       );
 
       if (response.data.success && response.data.data.ingredients) {
-        const mappedSuggestions = response.data.data.ingredients.map((ing: any) => {
-          // Show the name and allowed measures
-          const name = ing.name;
-          const allowedMeasures = ing.allowedMeasures;
+        const mappedSuggestions = response.data.data.ingredients.map((ing: unknown) => {
+          const item = ing as Record<string, unknown>;
+          const name = String(item.name ?? '');
+          const id = String(item.id ?? name);
+          const allowedMeasures = Array.isArray(item.allowedMeasures)
+            ? (item.allowedMeasures as unknown[]).map(m => {
+                const mm = m as Record<string, unknown>;
+                return { name: String(mm.name ?? '') };
+              })
+            : [];
 
-          return { name, allowedMeasures };
+          return { id, name, allowedMeasures };
         });
 
         setSuggestions(mappedSuggestions);

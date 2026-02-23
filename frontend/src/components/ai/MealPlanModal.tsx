@@ -66,9 +66,12 @@ const MealPlanModal: React.FC<MealPlanModalProps> = ({ date, onClose }) => {
         afternoonSnack: existingPlan.meals.afternoonSnack.map(meal => ({ ...meal, recipe: meal.recipe.id })),
         dinner: existingPlan.meals.dinner.map(meal => ({ ...meal, recipe: meal.recipe.id })),
       };
-      setMeals(convertedMeals);
-      setOriginalMeals(convertedMeals);
-      setIsEditing(false);
+      // Defer state updates to avoid synchronous setState in effect
+      setTimeout(() => {
+        setMeals(convertedMeals);
+        setOriginalMeals(convertedMeals);
+        setIsEditing(false);
+      }, 0);
     } else {
       const emptyMeals = {
         breakfast: [],
@@ -77,9 +80,11 @@ const MealPlanModal: React.FC<MealPlanModalProps> = ({ date, onClose }) => {
         afternoonSnack: [],
         dinner: [],
       };
-      setMeals(emptyMeals);
-      setOriginalMeals(null);
-      setIsEditing(true);
+      setTimeout(() => {
+        setMeals(emptyMeals);
+        setOriginalMeals(null);
+        setIsEditing(true);
+      }, 0);
     }
   }, [date, mealPlans]);
 
@@ -140,7 +145,10 @@ const MealPlanModal: React.FC<MealPlanModalProps> = ({ date, onClose }) => {
       });
       setIsEditing(false);
       setOriginalMeals(meals);
-    } catch (error) {
+    } catch (err) {
+      console.error('Error saving meal plan:', err);
+      // Inform the user
+      // toast could be used here, but keep simple
     }
   };
 

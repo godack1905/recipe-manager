@@ -1,8 +1,21 @@
 import { create } from 'zustand';
 import type { MealPlan, CreateMealPlanData } from '../lib/mealPlanApi';
 import { mealPlanApi } from '../lib/mealPlanApi';
+import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { t } from 'i18next';
+
+// Helper to extract error message from AxiosError
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    const axiosErr = err as AxiosError;
+    const data = axiosErr?.response?.data as Record<string, unknown> | undefined;
+    const nestedData = data?.data as Record<string, unknown> | undefined;
+    const originalMessage = nestedData?.originalMessage as string | undefined;
+    return originalMessage || axiosErr.message || 'Unknown error';
+  }
+  return 'Unknown error';
+};
 
 interface MealPlanState {
   mealPlans: MealPlan[];
@@ -18,7 +31,7 @@ interface MealPlanState {
   clearError: () => void;
 }
 
-export const useMealPlanStore = create<MealPlanState>((set, get) => ({
+export const useMealPlanStore = create<MealPlanState>((set) => ({
   mealPlans: [],
   currentMealPlan: null,
   loading: false,
@@ -32,8 +45,8 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
         mealPlans: response.data.mealPlans || response.data || response,
         loading: false 
       });
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -52,11 +65,11 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       }));
       toast.success(t("mealPlan.createSuccess"));
       return newMealPlan;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
-      throw error;
+      throw err;
     }
   },
 
@@ -70,8 +83,8 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       }));
       toast.success(t("mealPlan.deleteSucces"));
       return true;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
       return false;

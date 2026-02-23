@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -20,7 +20,6 @@ import { useRecipeStore } from '../store/recipeStore';
 import { useAuthStore } from '../store/authStore';
 import { ingredientsApi, type IngredientData } from '../lib/ingredientsApi';
 import { 
-  MEAL_TYPE_TAGS, 
   TAG_CATEGORIES
 } from '../constants/mealTags';
 import toast from 'react-hot-toast';
@@ -58,10 +57,22 @@ interface FormIngredient {
 // Normalize API ingredient shape to `IngredientWithMeasures`
 const normalizeIngredient = (ing: IngredientData): IngredientWithMeasures => ({
   ...ing,
-  allowedMeasures: (ing.allowedMeasures || []).map((m: any) => 
-    typeof m === 'string' ? { name: m } as MeasureOption : (m as MeasureOption)
-  )
+  allowedMeasures: (ing.allowedMeasures || []).map((m: unknown) => {
+    if (typeof m === 'string') return { name: m } as MeasureOption;
+    return (m as MeasureOption);
+  })
 });
+
+// Helper to extract error message from AxiosError
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    const axiosErr = err as import('axios').AxiosError;
+    const data = axiosErr?.response?.data as Record<string, unknown> | undefined;
+    const originalMessage = data?.message as string | undefined;
+    return originalMessage || axiosErr.message || 'Unknown error';
+  }
+  return 'Unknown error';
+};
 
 const RecipeEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -71,7 +82,6 @@ const RecipeEdit = () => {
   
   const ingredientInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const tagInputRef = useRef<HTMLInputElement>(null);
 
   const { t, i18n } = useTranslation();
   
@@ -96,14 +106,13 @@ const RecipeEdit = () => {
     unit: '',
     displayQuantity: ''
   });
-  const [currentTag, setCurrentTag] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
-  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-  const [filteredTags, setFilteredTags] = useState<string[]>(() => [...MEAL_TYPE_TAGS]);
+
 
   // Get current language (es or en)
   const currentLang = i18n.language?.split('-')[0] || 'en';
@@ -152,43 +161,10 @@ const RecipeEdit = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close tag suggestions on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tagInputRef.current && 
-        !tagInputRef.current.contains(event.target as Node)
-      ) {
-        setShowTagSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Filter tags based on input
-  useEffect(() => {
-    if (currentTag.trim()) {
-      const filtered = MEAL_TYPE_TAGS.filter(tag => 
-        tag.toLowerCase().includes(currentTag.toLowerCase())
-      );
-      setFilteredTags(filtered);
-      setShowTagSuggestions(true);
-    } else {
-      setFilteredTags(MEAL_TYPE_TAGS.slice(0, 10));
-      setShowTagSuggestions(false);
-    }
-  }, [currentTag]);
+  // Tag features removed - no-op
 
   // Load recipe
-  useEffect(() => {
-    if (id) {
-      loadRecipe();
-    }
-  }, [id]);
-
-  const loadRecipe = async () => {
+  const loadRecipe = useCallback(async () => {
     if (!id) return;
     
     const recipe = await fetchRecipeById(id);
@@ -207,30 +183,34 @@ const RecipeEdit = () => {
     setLoadingIngredients(true);
     try {
       const ingredientsWithData = await Promise.all(
-        (recipe.ingredients || []).map(async (ing: any) => {
-          if (/^\d+$/.test(ing.ingredient)) {
+        (recipe.ingredients || []).map(async (ing: unknown) => {
+          const rawIng = ing as Record<string, unknown>;
+          const ingName = String(rawIng.ingredient ?? '');
+          if (/^\d+$/.test(ingName)) {
             try {
-              const response = await ingredientsApi.getByName(ing.ingredient);
+              const response = await ingredientsApi.getByName(ingName);
               if (response.success && response.ingredient) {
                 const rawIngredient = response.ingredient as IngredientData;
                 const ingredientData = normalizeIngredient(rawIngredient);
                 return {
                   ingredient: ingredientData.name,
                   ingredientData: ingredientData,
-                  quantity: ing.quantity || 0,
-                  unit: ing.unit || '',
-                  displayQuantity: ing.displayQuantity || ing.quantity?.toString() || ''
+                  quantity: Number(rawIng.quantity ?? 0) || 0,
+                  unit: String(rawIng.unit ?? ''),
+                  displayQuantity: String(rawIng.displayQuantity ?? rawIng.quantity ?? '')
                 };
               }
-            } catch (error) {}
+            } catch (err) {
+              console.error('Error fetching ingredient by name:', err);
+            }
           }
-          
+
           return {
-            ingredient: ing.ingredient,
+            ingredient: ingName,
             ingredientData: null,
-            quantity: ing.quantity || 0,
-            unit: ing.unit || '',
-            displayQuantity: ing.displayQuantity || ing.quantity?.toString() || ''
+            quantity: Number((rawIng.quantity as unknown) ?? 0) || 0,
+            unit: String(rawIng.unit ?? ''),
+            displayQuantity: String(rawIng.displayQuantity ?? rawIng.quantity ?? '')
           };
         })
       );
@@ -246,12 +226,19 @@ const RecipeEdit = () => {
         steps: recipe.steps?.length ? recipe.steps : [''],
         tags: recipe.tags || [],
       });
-    } catch (error) {
+    } catch (err) {
+      console.error('Error loading recipe:', err);
       toast.error(t("recipe.loadError"));
     } finally {
       setLoadingIngredients(false);
     }
-  };
+  }, [id, fetchRecipeById, user?.id, navigate, t]);
+
+  useEffect(() => {
+    if (id) {
+      loadRecipe();
+    }
+  }, [id, loadRecipe]);
 
   // Handle search input change - CORREGIDO
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -603,9 +590,9 @@ const RecipeEdit = () => {
       toast.success(t("recipe.updateSuccess"));
       navigate(`/recipes`);
 
-    } catch (error: any) {
-      console.error('Error: ', error);
-      const errorMessage = error.response?.data?.message || 'Error updating recipe';
+    } catch (err) {
+      console.error('Error updating recipe:', err);
+      const errorMessage = getErrorMessage(err);
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -829,7 +816,7 @@ const RecipeEdit = () => {
                               const regex = new RegExp(`(${searchTerm})`, 'gi');
                               parts = displayName.split(regex);
                             }
-                          } catch (error) {
+                          } catch {
                             parts = [displayName];
                           }
                           

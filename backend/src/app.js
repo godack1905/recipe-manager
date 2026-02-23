@@ -28,6 +28,7 @@ app.use(cors({
         return callback(null, true);
       }
     } catch (e) {
+      // Catch the error
     }
 
     callback(

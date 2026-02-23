@@ -1,8 +1,21 @@
 import { create } from 'zustand';
 import type { Recipe, CreateRecipeData } from '../lib/recipesApi';
 import { recipesApi } from '../lib/recipesApi';
+import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { t } from 'i18next';
+
+// Helper to extract error message from AxiosError
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    const axiosErr = err as AxiosError;
+    const data = axiosErr?.response?.data as Record<string, unknown> | undefined;
+    const nestedData = data?.data as Record<string, unknown> | undefined;
+    const originalMessage = nestedData?.originalMessage as string | undefined;
+    return originalMessage || axiosErr.message || 'Unknown error';
+  }
+  return 'Unknown error';
+};
 
 interface RecipeState {
   recipes: Recipe[];
@@ -39,8 +52,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         recipes: response.data.recipes,
         loading: false 
       });
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -52,8 +65,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       const response  = await recipesApi.getById(id);
       set({ currentRecipe: response.data, loading: false });
       return response.data;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
       return null;
@@ -65,15 +78,20 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       const response = await recipesApi.getFavorites();
       const favoritesData = response.data.favorites || [];
-      const favoriteIds = Array.isArray(favoritesData) 
-        ? favoritesData.map((fav: any) => fav.id || fav)
+      const favoriteIds = Array.isArray(favoritesData)
+        ? favoritesData.map((fav: unknown) => {
+            if (fav && typeof fav === 'object' && 'id' in (fav as Record<string, unknown>)) {
+              return String((fav as Record<string, unknown>).id);
+            }
+            return String(fav);
+          })
         : [];
       set({ 
         favorites: favoriteIds,
         loading: false 
       });
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
     }
@@ -89,11 +107,11 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       }));
       toast.success(t("recipe.createdSuccess"));
       return recipe;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
-      throw error;
+      throw err;
     }
   },
 
@@ -108,11 +126,11 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       }));
       toast.success(t("recipe.updateSuccess"));
       return recipe;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
-      throw error;
+      throw err;
     }
   },
 
@@ -127,8 +145,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       }));
       toast.success(t("recipe.deleteSuccess"));
       return true;
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       set({ error: message, loading: false });
       toast.error(message);
       return false;
@@ -139,14 +157,19 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       const response = await recipesApi.toggleFavorite(id);
       const newFavorites = response.data.favorites || get().favorites;
-      const favoriteIds = Array.isArray(newFavorites) 
-        ? newFavorites.map((fav: any) => fav.id || fav)
+      const favoriteIds = Array.isArray(newFavorites)
+        ? (newFavorites as unknown[]).map(fav => {
+            if (fav && typeof fav === 'object' && 'id' in (fav as Record<string, unknown>)) {
+              return String((fav as Record<string, unknown>).id);
+            }
+            return String(fav);
+          })
         : [];
       
       set({ favorites: favoriteIds });
       toast.success(response.message || t("recipe.favoritesUpdated"));
-    } catch (error: any) {
-      const message = error.response?.data?.data?.originalMessage;
+    } catch (err) {
+      const message = getErrorMessage(err);
       toast.error(message);
     }
   },

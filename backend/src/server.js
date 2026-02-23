@@ -40,7 +40,7 @@ const startServer = async () => {
   });
 
   // Handle server errors
-  server.on("error", (error) => {
+  server.on("error", () => {
     process.exit(1);
   });
 };

@@ -27,7 +27,8 @@ const RecipeSelector: React.FC<RecipeSelectorProps> = ({ value, onChange, recipe
 
   useEffect(() => {
     if (selectedRecipe && !search) {
-      setSearch(selectedRecipe.title);
+      // Defer to avoid synchronous setState in effect
+      setTimeout(() => setSearch(selectedRecipe.title), 0);
     }
   }, [selectedRecipe, search]);
 

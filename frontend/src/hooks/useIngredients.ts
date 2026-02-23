@@ -27,8 +27,8 @@ export const useIngredients = () => {
       
       setIngredients(ingredientsList);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export const useIngredients = () => {
       }
       
       return null;
-    } catch (err) {
+    } catch {
       return null;
     }
   }, []);

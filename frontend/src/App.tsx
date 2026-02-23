@@ -37,7 +37,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   const { isAuthenticated, loading } = useAuthStore();
   const { fetchFavorites } = useRecipeStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
